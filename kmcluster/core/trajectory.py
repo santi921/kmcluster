@@ -18,6 +18,7 @@ class trajectory():
             ret_dict[self.transition_times[i]] = state
         return ret_dict
 
+
     def add_new_state(self, new_state, time_transition): 
         #append state to states
         self.states.append(new_state)
@@ -66,4 +67,4 @@ class trajectory():
         """
         # get index of time
         index = bisect.bisect_left(self.transition_times, time)
-        return self.states[index]
+        return self.states[index-1]
