@@ -503,40 +503,34 @@ def communities_static(trajectories, time_to_plot):
 
 
 def graph_slider(trajectories, rates, time_max, n_states, file_name):
-    # Create the figure and the line that we will manipulate
     fig, ax = plt.subplots()
-    #ax.margins(x=0)
-    fig.subplots_adjust(left=0.1, bottom=0.1)
-    
+    fig.subplots_adjust(left=0.1, bottom=0.3)
+
     # Make a horizontal slider to control the frequency.
-    axcolor = 'lightgoldenrodyellow'
-    axfreq = fig.add_axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
-    #resetax = fig.add_axes([0.8, 0.025, 0.1, 0.04])
-    #button = Button(resetax, 'Reset', hovercolor='0.975')
-    #def reset(event):
-    #    freq_slider.reset()
-    #button.on_clicked(reset)
+    axfreq = fig.add_axes([0.25, 0.1, 0.65, 0.03])
 
     freq_slider = Slider(
         axfreq,
         'Frame',
         0.0,
-        1000.0,
+        time_max,
         1.0,
-        valfmt="%d"
-        #valstep=1.0,
-        #slidermin=0,
-        #slidermax=1000,
+        handle_style = {'facecolor':'red'}, 
+        track_color="lightgrey", 
+        facecolor="lightgrey",
+        initcolor='red'
     )
-    
+
     pos = graph_pos(rates)
+
     def helper_plot(init_frame): 
         #reset ax 
         ax.clear()
-        single_frame(init_frame, trajectories, rates, pos, n_states, ax)
-    
+        single_frame_slider(init_frame, trajectories, rates, pos, n_states, ax)
+
     helper_plot(init_frame=0)
     freq_slider.on_changed(helper_plot)
+    
     fig.canvas.draw_idle()
     plt.show()
 
