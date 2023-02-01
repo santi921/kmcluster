@@ -121,7 +121,7 @@ def compute_state_counts(trajectories, resolution, max_time):
     return count_dict
     
 
-def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, resolution = 0.1): 
+def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, resolution = 0.1, title = None, xlabel = None, ylabel = None, save = False, save_name = None): 
     """
     given a list of trajectory objects and n plot the dynamics of the top n states
     
@@ -145,17 +145,20 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
                 counts_per_state[keys_top_n.index(state), ind] += 1
 
     for i in range(n_show):
-        #cubic_interpolation_model = make_interp_spline(x_axis, counts_per_state[i,:]/total_states)
-        #plt.plot(x_axis, cubic_interpolation_model(x_axis), label = "spline")
         plt.plot(x_axis, counts_per_state[i,:]/total_states, label = keys_top_n[i])
-
-        #plt.plot(x_axis, counts_per_state[i,:]/total_states, label = keys_top_n[i])
     
+    if title: 
+        plt.title(title)
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    if save:
+        plt.savefig(save_name)
     plt.legend()
     plt.show()
 
-
-def plot_states(trajectories, total_states, states_to_plot, max_time = 100, resolution = 0.1): 
+def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, title = None, xlabel = None, ylabel = None, save = False, save_name = None): 
     """
     given a list of trajectory objects and n plot the dynamics of the top n states
     
@@ -180,9 +183,16 @@ def plot_states(trajectories, total_states, states_to_plot, max_time = 100, reso
             if state in states_to_plot: 
                 counts_per_state[states_to_plot.index(state), ind] += 1
 
-    for i in range(states_to_plot):
+    for i in range(len(states_to_plot)):
         plt.plot(x_axis, counts_per_state[i,:], label = states_to_plot[i])
-    
+    if title: 
+        plt.title(title)
+    if xlabel:
+        plt.xlabel(xlabel)
+    if ylabel:
+        plt.ylabel(ylabel)
+    if save:
+        plt.savefig(save_name)
     plt.legend()
     plt.show()
 
