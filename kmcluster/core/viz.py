@@ -128,9 +128,9 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
     Takes: 
         trajectories: list of trajectory objects
         n(int): number of states to plot
+        total_states(int): total number of states in the system
         time_stop(float): time upper bound on plotting
     """
-    resolution = 0.1
     count_dict = compute_state_counts(trajectories, resolution, max_time)   
     
     keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
@@ -154,6 +154,37 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
     plt.legend()
     plt.show()
 
+
+def plot_states(trajectories, total_states, states_to_plot, max_time = 100, resolution = 0.1): 
+    """
+    given a list of trajectory objects and n plot the dynamics of the top n states
+    
+    Takes: 
+        trajectories: list of trajectory objects
+        states_to_plot(list): list of states to plot
+        total_states(int): total number of states in the system
+        time_stop(float): time upper bound on plotting
+        max_time(float): time upper bound on plotting
+        resolution(float): bin size
+    """
+
+    #count_dict = compute_state_counts(trajectories, resolution, max_time)   
+    #keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
+    
+    x_axis = np.arange(0, max_time, resolution)
+    counts_per_state = np.zeros((int(len(states_to_plot)), len(x_axis)))
+
+    for traj in trajectories:
+        for ind, i in enumerate(x_axis): 
+            state = traj.state_at_time(i)
+            if state in states_to_plot: 
+                counts_per_state[states_to_plot.index(state), ind] += 1
+
+    for i in range(states_to_plot):
+        plt.plot(x_axis, counts_per_state[i,:], label = states_to_plot[i])
+    
+    plt.legend()
+    plt.show()
 
 def graph_trajectories_static(frame, trajectories, rates, ret_pos = False, pos=None, ax=None): 
     """
