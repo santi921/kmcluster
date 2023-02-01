@@ -86,7 +86,7 @@ def read_rates(filename):
     return mat_ret
 
 
-def sparse_to_rate_mat(sparse_mat, states): 
+def sparse_to_mat(sparse_mat, states): 
     """
     sparse encoding to rate matrix
     Takes
@@ -103,7 +103,7 @@ def sparse_to_rate_mat(sparse_mat, states):
     return rate_mat
 
 
-def rate_mat_to_sparse(matrix): 
+def mat_to_sparse(matrix): 
     """
     rate matrix to sparse matrix
     Takes: 

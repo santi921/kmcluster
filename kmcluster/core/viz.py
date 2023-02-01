@@ -158,6 +158,7 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
     plt.legend()
     plt.show()
 
+
 def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, title = None, xlabel = None, ylabel = None, save = False, save_name = None): 
     """
     given a list of trajectory objects and n plot the dynamics of the top n states
@@ -196,7 +197,8 @@ def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, 
     plt.legend()
     plt.show()
 
-def graph_trajectories_static(frame, trajectories, rates, ret_pos = False, pos=None, ax=None): 
+
+def graph_trajectories_static(time, trajectories, rates, ret_pos = False, pos=None, ax=None, save=False, save_name="test.png"): 
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
     """
@@ -216,7 +218,7 @@ def graph_trajectories_static(frame, trajectories, rates, ret_pos = False, pos=N
     
     counts = {}
     for traj in trajectories:
-        state = traj.state_at_time(frame)
+        state = traj.state_at_time(time)
         if state in counts:
             counts[state] += 1
         else:
@@ -283,16 +285,18 @@ def graph_trajectories_static(frame, trajectories, rates, ret_pos = False, pos=N
     plt.show()
     if ret_pos: 
         return pos
+    if save:
+        plt.savefig(save_name)
 
 
-def single_frame(frame, trajectories, rates, pos, n_states, ax=None): 
+def single_frame(time, trajectories, rates, pos, n_states, ax=None): 
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
+
     """
     # make matrix whether there is a rate connecting two states
     axis = plt.gca()
     axis.clear()
-    #print(frame)
     G = nx.DiGraph()
 
     rates_binary = np.zeros((len(rates), len(rates)))
@@ -307,7 +311,7 @@ def single_frame(frame, trajectories, rates, pos, n_states, ax=None):
     
     counts = {i:0 for i in range(n_states)}
     for traj in trajectories:
-        state = traj.state_at_time(frame)
+        state = traj.state_at_time(time)
         if state in counts:
             counts[state] += 1
         else:
@@ -517,23 +521,6 @@ def graph_trajectories_dynamic(trajectories, rates, time_max, n_states, file_nam
     ani.save(file_name_10, writer='imagemagick', fps=10)
     ani.save(file_name_25, writer='imagemagick', fps=25)
         
-
-def graph_traj_plotly(trajectories, rates, time_max, file_name):
-    import plotly.express as px
-    df = px.data.gapminder()
-    px.scatter(
-        df, 
-        x="gdpPercap", 
-        y="lifeExp", 
-        animation_frame="year", 
-        animation_group="country",
-        size="pop", 
-        color="continent", 
-        hover_name="country",
-        log_x=True, 
-        size_max=55, 
-        range_x=[100,100000], 
-        range_y=[25,90])
     
 
 def communities_static(trajectories, time_to_plot): 

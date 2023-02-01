@@ -6,7 +6,7 @@ import numpy as np
 class kmc():
     def __init__(self, steps, pop_size, draw_crit, initialization, rates, time_stop=-1):
         self.steps = steps
-        self.size = pop_size
+        self.pop_size = pop_size
         self.draw_crit = draw_crit
         self.rates = rates
         self.time_stop = time_stop
@@ -43,14 +43,15 @@ class kmc():
         ret_dict = {}
 
         for i in self.trajectories:
-            state_temp = i.get_state_dict_at_time(t)
-            if state_temp is not None:
+            state_temp = str(i.state_at_time(t))
+            if state_temp not in ret_dict.keys():
                 ret_dict[state_temp] = 1 
             else:
                 ret_dict[state_temp] += 1
 
         return ret_dict
     
+
     def save_as_matrix(self, file, start_time=0, end_time=100, step=1):
         """
         Saves states to file
@@ -62,10 +63,12 @@ class kmc():
         Returns: 
             None
         """
-        mat_save = np.zeros((int(end_time-start_time / step), self.size))
-        for t in range(start_time, end_time, step):
-            for i in self.trajectories:
-                mat_save[t][i] = i.get_state_at_time(t)
+        mat_save = np.zeros((self.size, int(np.ceil(end_time-start_time / step))))
+        sampling_array = np.arange(start_time, end_time, step)
+
+        for ind_t, t in enumerate(sampling_array):
+            for ind, i in enumerate(self.trajectories):
+                mat_save[ind][ind_t] = i.state_at_time(t)
         np.save(file, mat_save)
 
 
