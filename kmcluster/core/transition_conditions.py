@@ -4,11 +4,12 @@ from copy import deepcopy
 
 class rfkmc:
 
-    def __init__(self): 
-        pass
+    def __init__(self, k_b_t = 1): 
+        self.k_b_t = k_b_t
 
-    def call(self, rates_total):
+    def call(self, energies_total):
         
+        rates_total = np.exp(-energies_total/self.k_b_t)
         sum_rates = np.sum(rates_total)
         if sum_rates == 0:
             return -1, 10E6
@@ -29,10 +30,12 @@ class rfkmc:
 
 class rkmc:
 
-    def __init__(self, r_0):
+    def __init__(self, r_0, k_b_t = 1):
         self.rejection = r_0
+        self.k_b_t = k_b_t
 
-    def call(self, rates_total):
+    def call(self, energies_total):
+        rates_total = np.exp(-energies_total/self.k_b_t)
         sum_rates = np.sum(rates_total) 
         rates_cum =  rates_to_cum_rates(rates_total)
         if sum_rates == 0:
