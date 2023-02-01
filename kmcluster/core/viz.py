@@ -198,23 +198,23 @@ def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, 
     plt.show()
 
 
-def graph_trajectories_static(time, trajectories, rates, ret_pos = False, pos=None, ax=None, save=False, save_name="test.png"): 
+def graph_trajectories_static(time, trajectories, energies, ret_pos = False, pos=None, ax=None, save=False, save_name="test.png"): 
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
     """
     # make matrix whether there is a rate connecting two states
     G = nx.DiGraph()
 
-    rates_binary = np.zeros((len(rates), len(rates)))
+    energies_binary = np.zeros((len(energies), len(energies)))
     
-    for i in range(len(rates)):
-        for j in range(len(rates)): 
-            if rates[i][j] > 0: 
+    for i in range(len(energies)):
+        for j in range(len(energies)): 
+            if energies[i][j] > 0: 
                 G.add_weighted_edges_from(
-                    [(i, j, rates[i][j])], 
-                    label=round(rates[i][j], 2)
+                    [(i, j, energies[i][j])], 
+                    label=round(energies[i][j], 2)
                     )
-                rates_binary[i][j] = 1
+                energies_binary[i][j] = 1
     
     counts = {}
     for traj in trajectories:
@@ -375,7 +375,7 @@ def single_frame(time, trajectories, rates, pos, n_states, ax=None):
     return nodes, e, n_labels, e_labels,
 
 
-def single_frame_slider(frame, trajectories, rates, pos, n_states, ax=None): 
+def single_frame_slider(frame, trajectories, energies, pos, n_states, ax=None): 
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
     """
@@ -388,15 +388,15 @@ def single_frame_slider(frame, trajectories, rates, pos, n_states, ax=None):
     #print(frame)
     G = nx.DiGraph()
 
-    rates_binary = np.zeros((len(rates), len(rates)))
-    for i in range(len(rates)):
-        for j in range(len(rates)): 
-            if rates[i][j] > 0: 
+    energies = np.zeros((len(energies), len(energies)))
+    for i in range(len(energies)):
+        for j in range(len(energies)): 
+            if energies[i][j] > 0: 
                 G.add_weighted_edges_from(
-                    [(i, j, rates[i][j])], 
-                    label=round(rates[i][j], 2)
+                    [(i, j, energies[i][j])], 
+                    label=round(energies[i][j], 2)
                     )
-                rates_binary[i][j] = 1
+                energies[i][j] = 1
     
     counts = {i:0 for i in range(n_states)}
     for traj in trajectories:
@@ -504,17 +504,17 @@ def get_node_info_at_time(trajectories, time, shift = 400, scale = 10):
     return counts_transformed
 
 
-def graph_trajectories_dynamic(trajectories, rates, time_max, n_states, file_name): 
+def graph_trajectories_dynamic(trajectories, energies, time_max, n_states, file_name): 
     """
     given a list of trajectories, plot as an animated graph from 0 to time_to_plot
     """
 
-    pos = graph_pos(rates)
+    pos = graph_pos(energies)
 
     fig = plt.gcf()
     ani = animation.FuncAnimation(fig, 
         single_frame, 
-        fargs=(trajectories, rates, pos, n_states),
+        fargs=(trajectories, energies, pos, n_states),
         blit=False, frames = np.arange(0,time_max,1), interval=10, repeat=True)
     file_name_25 = file_name + '_25.gif'
     file_name_10 = file_name + '_10.gif'
