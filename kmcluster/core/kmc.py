@@ -4,9 +4,9 @@ import json
 import numpy as np
 
 class kmc():
-    def __init__(self, pop_size, draw_crit, initialization, energies, time_stop=-1):
+    def __init__(self, draw_crit, initialization, energies, time_stop=-1):
         #self.steps = steps
-        self.pop_size = pop_size
+        self.pop_size = initialization.size 
         self.draw_crit = draw_crit
         self.energies = energies
         self.time_stop = time_stop
