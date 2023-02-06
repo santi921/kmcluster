@@ -9,11 +9,11 @@ class rfkmc:
 
     def call(self, energies_total):
         
-        rates_total = np.exp(-energies_total/self.k_b_t)
+        rates_total = (self.k_b_t / (4.1357 * 10**-15 )) * np.exp(-energies_total/self.k_b_t)
         sum_rates = np.sum(rates_total)
         if sum_rates == 0:
             return -1, 10E6
-        
+        print(rates_total)
         rates_cum =  rates_to_cum_rates(rates_total)
     
         # randomly select a number between 0 and rates_rotal
@@ -35,7 +35,7 @@ class rkmc:
         self.k_b_t = k_b_t
 
     def call(self, energies_total):
-        rates_total = np.exp(-energies_total/self.k_b_t)
+        rates_total = (self.k_b_t / (4.1357 * 10**-15 )) * np.exp(-energies_total/self.k_b_t)
         sum_rates = np.sum(rates_total) 
         rates_cum =  rates_to_cum_rates(rates_total)
         if sum_rates == 0:
