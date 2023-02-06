@@ -66,5 +66,5 @@ class trajectory():
             index(int): of state
         """
         # get index of time
-        index = bisect.bisect_left(self.transition_times, time)
+        index = bisect.bisect_right(self.transition_times, time)
         return self.states[index-1]
