@@ -132,7 +132,6 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
         time_stop(float): time upper bound on plotting
     """
     count_dict = compute_state_counts(trajectories, resolution, max_time)   
-    
     keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
     
     x_axis = np.arange(0, max_time, resolution)
@@ -155,6 +154,8 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
         plt.ylabel(ylabel)
     if save:
         plt.savefig(save_name)
+    # adjust x axis to min, max time
+    plt.xlim(0, max_time)
     plt.legend()
     plt.show()
 

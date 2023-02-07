@@ -2,18 +2,29 @@ import numpy as np
 import random 
 from copy import deepcopy
 
+k_b_ev = 8.614 * 10**-5
+k_b_j = 1.38064852 * 10**-23
+
 class rfkmc:
 
     def __init__(self, k_b_t = 1): 
         self.k_b_t = k_b_t
 
     def call(self, energies_total):
+        # filter all states with energy = 0
+        #energies_total = energies_total[energies_total != 0]
+        rate_list = []
+        for i in range(len(energies_total)):
+            if energies_total[i] == 0:
+                rate_list.append(0)
+            else:
+                rate = (self.k_b_t / (4.1357 * 10**-15 )) * np.exp(-(energies_total[i]/(self.k_b_t)))
+                rate_list.append(rate)
         
-        rates_total = (self.k_b_t / (4.1357 * 10**-15 )) * np.exp(-energies_total/self.k_b_t)
+        rates_total = np.array(rate_list)
         sum_rates = np.sum(rates_total)
         if sum_rates == 0:
             return -1, 10E6
-        print(rates_total)
         rates_cum =  rates_to_cum_rates(rates_total)
     
         # randomly select a number between 0 and rates_rotal
@@ -24,7 +35,7 @@ class rfkmc:
         # this is the index of the state that the particle will transition to
         return_state = np.argmax(rates_cum >= rand_state)
         time_to_transition = -np.log(rand_time)/sum_rates
-
+        #print(time_to_transition)
         return return_state, time_to_transition
 
 
@@ -35,9 +46,17 @@ class rkmc:
         self.k_b_t = k_b_t
 
     def call(self, energies_total):
-        rates_total = (self.k_b_t / (4.1357 * 10**-15 )) * np.exp(-energies_total/self.k_b_t)
-        sum_rates = np.sum(rates_total) 
-        rates_cum =  rates_to_cum_rates(rates_total)
+        rate_list = []
+        for i in range(len(energies_total)):
+            if energies_total[i] == 0:
+                rate_list.append(0)
+            else:
+                rate = (self.k_b_t / (4.1357 * 10**-15 )) * np.exp(-(energies_total[i]/(self.k_b_t)))
+                rate_list.append(rate)
+        
+        rates_total = np.array(rate_list)
+        sum_rates = np.sum(rate_list) 
+        rates_cum =  rates_to_cum_rates(rate_list)
         if sum_rates == 0:
             return -1, 10E6
         

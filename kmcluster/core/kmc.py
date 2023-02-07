@@ -27,8 +27,18 @@ class kmc():
             
             
     def run(self, n_steps=10):
-        for _ in tqdm(range(n_steps)):
-            self.step()
+        if n_steps == -1:
+            # check if all trajectories have reached time_stop
+            last_time_arr = np.array([i.last_time() for i in self.trajectories])
+            while not all([ i > self.time_stop for i in last_time_arr]):
+                # print lowest time and clear output
+                print("Lowest time: ", np.min(last_time_arr), end='\r')
+                self.step()
+                last_time_arr = np.array([i.last_time() for i in self.trajectories])    
+                
+        else:        
+            for _ in tqdm(range(n_steps)):
+                self.step()
 
 
     def get_state_dict_at_time(self, t = 0):
