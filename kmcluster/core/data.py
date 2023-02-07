@@ -86,17 +86,27 @@ def read_rates(filename):
     return mat_ret
 
 
-def sparse_to_mat(sparse_mat, states): 
+def sparse_to_mat(sparse_mat): 
     """
     sparse encoding to rate matrix
     Takes
-        states(int) - number of states
         sparse_mat(list of lists) - transitions in format [ind_state_from, ind_state_to, rate]
     Returns 
         rate_mat(numpy array) - square rate matrix with row start, column end state
     """
     # init square zero matrix
-    rate_mat = np.zeros((states, states))
+    # create a list of all states before creating a mat 
+    list_of_states = []
+    for i in sparse_mat: 
+        state_a = i[0]
+        state_b = i[1]
+        if state_a not in list_of_states:
+            list_of_states.append(state_a)
+        if state_b not in list_of_states:
+            list_of_states.append(state_b)
+    list_of_states.sort()
+
+    rate_mat = np.zeros((list_of_states, list_of_states))
     for row in sparse_mat: 
         rate_mat[row[0], row[1]] = row[2]
 
