@@ -217,7 +217,13 @@ def graph_trajectories_static(time, trajectories, energies, ret_pos = False, pos
                     )
                 energies_binary[i][j] = 1
     
-    counts = {}
+    # set of nodes in graph
+    nodes_list = list(G.nodes())
+
+    #counts = {}
+    print(nodes_list)
+    counts = {i: 0 for i in nodes_list}
+    
     for traj in trajectories:
         state = traj.state_at_time(time)
         if state in counts:
@@ -230,7 +236,7 @@ def graph_trajectories_static(time, trajectories, energies, ret_pos = False, pos
     counts = dict(sorted(counts.items()))
     counts_list = list(counts.values())
     counts_transformed = [400+(i/10) for i in counts_list]
-    
+    print(counts_list)
     if pos is None:
         pos = nx.spring_layout(G)
     
