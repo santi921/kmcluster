@@ -97,6 +97,7 @@ def sparse_to_mat(sparse_mat):
     # init square zero matrix
     # create a list of all states before creating a mat 
     list_of_states = []
+    
     for i in sparse_mat: 
         state_a = i[0]
         state_b = i[1]
@@ -105,8 +106,8 @@ def sparse_to_mat(sparse_mat):
         if state_b not in list_of_states:
             list_of_states.append(state_b)
     list_of_states.sort()
-
-    rate_mat = np.zeros((list_of_states, list_of_states))
+    num_states = len(list_of_states)
+    rate_mat = np.zeros((num_states, num_states))
     for row in sparse_mat: 
         rate_mat[row[0], row[1]] = row[2]
 
