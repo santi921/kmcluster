@@ -1,11 +1,14 @@
 import bisect 
 
 class trajectory():
-    def __init__(self, init_state):
+    def __init__(self, init_state, init_time=None):
         self.states = [init_state]
-        self.transition_times = [0]        
+        if init_time is None:
+            self.transition_times = [0]        
+        else:
+            self.transition_times = [init_time]
 
-
+    
     def draw_new_state(self, rates_from_i, draw_crit):
         # get rates of transition from i to j in probabilities matrix 
         new_state, time = draw_crit.call(rates_from_i)
@@ -28,7 +31,6 @@ class trajectory():
     def step(self, rates_from_i, draw_crit, time_stop = 10e9): 
         
         if time_stop > 0:
-            
             # check that time of last state
             last_transition = self.last_time()
             if last_transition > time_stop:
