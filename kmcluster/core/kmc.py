@@ -33,6 +33,7 @@ class kmc():
             traj_last_ind = traj.last_state()
             if self.time_stop > 0:
                 traj_last_time = traj.last_time()
+                #print(traj_last_time)
                 if traj_last_time > self.time_stop:
                     continue
                 else: 
@@ -45,7 +46,10 @@ class kmc():
             self.step_count = 0 
             # check if all trajectories have reached time_stop
             last_time_arr = np.array([i.last_time() for i in self.trajectories])
+            #print(last_time_arr)
+            #print(all([ i > self.time_stop for i in last_time_arr]))
             while not all([ i > self.time_stop for i in last_time_arr]):
+                #print("step: " + str(self.step_count))
                 # print lowest time and clear output
                 lowest_time = np.min(last_time_arr)
     
@@ -57,16 +61,19 @@ class kmc():
                 self.step_count = self.step_count + 1
                 self.step()
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])    
-            
+                #print(last_time_arr)
                 if self.check_converged: 
                     # get the last state of each trajectory
                     last_state_arr = np.array([i.last_state() for i in self.trajectories])
                     # get the number of times each state occurs
-                    state_counts = np.bincount(last_state_arr)
+                    state_counts = np.bincount(last_state_arr, minlength=self.energies.shape[0])
                     # get the proportion of each state
                     state_prop = state_counts / self.pop_size
+                    
+                    
                     # get the number of times the state proportions have been the same with a tolerance of 1e-2
                     self.pop_prop_hist.append(state_prop)
+                    
                     if len(self.pop_prop_hist) > self.check_converged_patience: # only keep the last 100 proportions
                         self.pop_prop_hist.pop(0)
                     
