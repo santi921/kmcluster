@@ -55,10 +55,11 @@ class kmc():
                     energies_from_i = self.energies[traj_last_ind]
                     traj.step(energies_from_i, self.draw_crit, time_stop=self.time_stop)
             else: 
-                print("last traj_ind: " + str(traj_last_ind))
+                #print("last traj_ind: " + str(traj_last_ind))
                 energies_from_i = self.energies[traj_last_ind]
                 traj.step(energies_from_i, self.draw_crit, time_stop=self.time_stop)
             
+
     def run(self, n_steps=10):
         if n_steps == -1:
             self.step_count = 0 
@@ -76,7 +77,7 @@ class kmc():
                 self.step_count = self.step_count + 1
                 self.step()
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])    
-                #print(last_time_arr)
+                
                 if self.check_converged: 
                     # get the last state of each trajectory
                     last_state_arr = np.array([i.last_state() for i in self.trajectories])
@@ -101,17 +102,19 @@ class kmc():
 
                 if self.checkpoint: 
                     if lowest_time > self.time_stop * self.save_ind / 10:
-                        time_save = self.time_stop * self.save_ind / 10
-                        time_save = np.min(self.time_stop * (self.save_ind - 1) / 10, 0)
-                        save_step = time_save / 100
+                        print("saving checkpoint at step {}".format(self.step_count))
 
+                        time_save = self.time_stop * self.save_ind / 10
+                        #time_save = np.min(self.time_stop * (self.save_ind - 1) / 10, 0)
+                        save_step = time_save / 100
+                        #print(time_save, save_step)
                         self.save_as_matrix(
                             file="trajectories_{}_ckpt.json".format(self.save_ind),
                             start_time=0, 
                             end_time=save_step, 
                             step=save_step,
                             append = True)
-                        
+                        self.save_ind = self.save_ind + 1
 
                 if self.memory_friendly: 
                     if lowest_time > self.time_stop * self.save_ind / 5:
@@ -125,7 +128,18 @@ class kmc():
                             traj_new.append(sample_trajectory(i, 0, time_save, save_step))
                         
                         self.trajectories = traj_new
-
+            # save run 
+            start_time = 0 
+            end_time = self.time_stop
+            step = float((end_time - start_time) / 100)
+            
+            self.save_as_matrix(
+                file="./save_trajectories".format(start_time, end_time, step),
+                start_time=start_time,
+                end_time=end_time,
+                step=step,
+                append = False)
+            
         else:        
             for _ in tqdm(range(n_steps)):
                 self.step()
@@ -162,25 +176,19 @@ class kmc():
         Returns: 
             None
         """
-        mat_save = np.zeros((self.pop_size, int(np.ceil(end_time-start_time / step))))
+
+        mat_save = np.zeros((self.pop_size, int(np.ceil((end_time-start_time) / step))))
         sampling_array = np.arange(start_time, end_time, step)
 
         for ind_t, t in enumerate(sampling_array):
             for ind, i in enumerate(self.trajectories):
                 mat_save[ind][ind_t] = i.state_at_time(t)
+
         file = "{}_start_{}_end_{}_step_{}".format(file, start_time, end_time, step)
         
         if append: 
-            # check if file exists
-            if os.path.isfile(file):
-                # load file
-                mat_load = np.load(file)
-                # append to file
-                mat_save = np.concatenate((mat_load, mat_save), axis=1)
-                # save file
-                np.save(file, mat_save)
-            else: 
-                np.save(file, mat_save)
+            # TODO: append to file
+            np.save(file, mat_save)
         else: 
             np.save(file, mat_save)
 
@@ -253,7 +261,6 @@ def load_kmc_from_matrix(file, energies_mat, draw_crit, time_stop):
     # get end time for simulation
     file_name = file[:-4]
     info = file_name.split("_")
-    print(info)
     end_time = float(info[-3])
     start_time = float(info[-5])
     step = float(info[-1])
@@ -262,19 +269,20 @@ def load_kmc_from_matrix(file, energies_mat, draw_crit, time_stop):
     #print("start, end, step {}, {}, {}".format(start_time, end_time, step))
     # get the last column of the matrix
     # print number of trajectories to be loaded
-    print("Loading {} trajectories".format(mat_load.shape[0]))
-    print("Starting at time {}".format(end_time))
+
 
     trajectories_loaded = [
         trajectory_from_list(i, start_time, end_time) 
         for i in mat_load.T]
-
+    print("Loading {} trajectories".format(len(trajectories_loaded)))
+    print("Starting at time {}".format(end_time))
     kmc_obj = kmc(
             draw_crit, 
             initialization = None, 
             energies = energies_mat, 
             memory_friendly=False, 
             check_converged=False, 
+            checkpoint=True, 
             time_stop=time_stop, 
             trajectories = trajectories_loaded,
         )

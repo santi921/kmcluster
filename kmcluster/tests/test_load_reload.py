@@ -1,6 +1,5 @@
 from kmcluster.core.kmc import load_kmc_from_matrix
 from kmcluster.core.transition_conditions import rfkmc
-from kmcluster.core.intialize import boltz
 from kmcluster.core.data import sparse_to_mat
 
 def test_reload():
