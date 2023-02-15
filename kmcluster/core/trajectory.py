@@ -1,13 +1,17 @@
 import bisect 
 
 class trajectory():
-    def __init__(self, init_state, init_time=None):
+    def __init__(self, init_state, init_time=None, init_history=None):
         self.states = [init_state]
         if init_time is None:
             self.transition_times = [0]        
         else:
             self.transition_times = [init_time]
 
+        if init_history is not None:
+            self.states = init_history[0]
+            self.transition_times = init_history[1]
+    
     
     def draw_new_state(self, rates_from_i, draw_crit):
         # get rates of transition from i to j in probabilities matrix 

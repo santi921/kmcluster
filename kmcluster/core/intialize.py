@@ -102,7 +102,7 @@ class selected(initializer):
         return self.population
 
 # convert population list to list of trajectories
-def population_ind_to_trajectories(population_list, draw_crit):
+def population_ind_to_trajectories(population_list):
 
     as_indicies = []
     for ind, i in enumerate(population_list):
