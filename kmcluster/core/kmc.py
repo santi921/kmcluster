@@ -105,7 +105,7 @@ class kmc():
                         print("saving checkpoint at step {}".format(self.step_count))
 
                         time_save = self.time_stop * self.save_ind / 10
-                        #time_save = np.min(self.time_stop * (self.save_ind - 1) / 10, 0)
+
                         save_step = time_save / 100
                         #print(time_save, save_step)
                         self.save_as_matrix(
@@ -117,16 +117,17 @@ class kmc():
                         self.save_ind = self.save_ind + 1
 
                 if self.memory_friendly: 
-                    if lowest_time > self.time_stop * self.save_ind / 5:
-                        time_save = self.time_stop * self.save_ind / 5
-                        time_save = np.min(self.time_stop * (self.save_ind - 1) / 5, 0)
-                        save_step = time_save / 200
+                    if lowest_time > self.time_stop * self.save_ind / 10:
+                        print("coarsening trajectories")
+                        time_save = self.time_stop * self.save_ind / 10
+                        #time_save = np.min(self.time_stop * (self.save_ind - 1) / 10, 0)
+                        save_step = time_save / (10 * self.save_ind)
                         
-                        traj_new = []
+                        traj_lists = []
+                        print(self.trajectories)
                         for i in self.trajectories:
-                            print(0, time_save, save_step)
-                            traj_new.append(sample_trajectory(i, 0, time_save, save_step))
-                        
+                            traj_lists.append(sample_trajectory(i, 0, time_save, save_step))
+                        traj_new = [trajectory_from_list(i[0], 0, time_save) for i in traj_lists]
                         self.trajectories = traj_new
             # save run 
             start_time = 0 
@@ -224,7 +225,7 @@ def sample_trajectory(trajectory, start, end, step):
     """
     states = []
     times = []
-    for t in np.arange(start = start, stop=end, step=step):
+    for t in np.arange(start, end, step):
         state_temp = str(trajectory.state_at_time(t))
         states.append(int(state_temp))
         times.append(t)
@@ -280,7 +281,7 @@ def load_kmc_from_matrix(file, energies_mat, draw_crit, time_stop):
             draw_crit, 
             initialization = None, 
             energies = energies_mat, 
-            memory_friendly=False, 
+            memory_friendly=True, 
             check_converged=False, 
             checkpoint=True, 
             time_stop=time_stop, 
