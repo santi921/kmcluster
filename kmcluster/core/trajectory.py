@@ -48,6 +48,12 @@ class trajectory():
         self.add_new_state(
             new_state, 
             time_to_transition)
+        
+        if time_to_transition < 10**-15:
+            return 1
+        else:
+            return 0
+        #    print("warning: time step is less than 10^-15\n")
     
 
     def get_history(self):
