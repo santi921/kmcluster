@@ -1,7 +1,7 @@
 from kmcluster.core.kmc import kmc, load_kmc_from_matrix
 from kmcluster.core.transition_conditions import rfkmc
 from kmcluster.core.intialize import random_init, boltz, selected
-from kmcluster.core.data import pull_json, sparse_to_mat
+from kmcluster.core.data import sparse_to_mat
 
 from kmcluster.core.viz import (
     plot_top_n_states,
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
     Pt_H1_all, H1_E = get_merge_data()
     energies_mat = sparse_to_mat(Pt_H1_all)
-    
+
     # initalize all the normal values
     temp_boltz = 150 * 8.617 * 10 ** (-5)
     k_b_ev = 8.614 * 10**-5
@@ -130,19 +130,9 @@ if __name__ == "__main__":
     time_stop = 0.0002
     file = "./checkpoints/saved_data_trajectories_10_ckpt_start_0_end_1.00000e-04_step_1.00000e-07.npy"
     # initialize kmc object
-    kmc_boltz = load_kmc_from_matrix(
-        file, 
-        energies_mat, 
-        rfkmc_obj, 
-        time_stop
-    )
-
+    kmc_boltz = load_kmc_from_matrix(file, energies_mat, rfkmc_obj, time_stop)
 
     # run calcs
-    
-    # n_steps=-1 means run until time_stop is reached
-    #kmc_boltz.run(n_steps=-1) # you can also not run more steps and just visualize the data
-    # kmc_boltz.run(n_steps=100)
     trajectories = kmc_boltz.trajectories
 
     plot_top_n_states(

@@ -1,7 +1,6 @@
-
 import copy
 import sys
-import numpy as np 
+import numpy as np
 import matplotlib.pyplot as plt
 from scipy.interpolate import make_interp_spline
 import networkx as nx
@@ -43,39 +42,42 @@ def set_node_facecolor(G, **kwargs):
     set_node_facecolor(G, color=('b'))
     """
     try:
-        node = kwargs['node']
+        node = kwargs["node"]
     except KeyError:
         node = None
     try:
-        color = kwargs['color']
+        color = kwargs["color"]
     except KeyError:
         print("color argument required")
         sys.exit(0)
 
-    if (isinstance(color, list) or isinstance(color, tuple)) and \
-            len(color) == 1:
+    if (isinstance(color, list) or isinstance(color, tuple)) and len(color) == 1:
         color = color[0]
 
-    same_colors = {'blue': 'b',
-                   'green': 'g',
-                   'red': 'r',
-                   'cyan': 'c',
-                   'magenta': 'm',
-                   'yellow': 'y',
-                   'black': 'k',
-                   'white': 'w'}
+    same_colors = {
+        "blue": "b",
+        "green": "g",
+        "red": "r",
+        "cyan": "c",
+        "magenta": "m",
+        "yellow": "y",
+        "black": "k",
+        "white": "w",
+    }
 
     if isinstance(color, str) and len(color) != 1:
         color = same_colors[color]
 
-    colors_dict = {'b': (0.,    0.,    1.,  1.),
-                   'g': (0.,    0.5,   0.,  1.),
-                   'r': (1.,    0.,    0.,  1.),
-                   'c': (0.,    0.75,  0.75,  1.),
-                   'm': (0.75,  0.,    0.75,  1.),
-                   'y': (0.75,  0.75,  0.,  1.),
-                   'k': (0.,    0.,    0.,  1.),
-                   'w': (1.,    1.,    1.,  1.)}
+    colors_dict = {
+        "b": (0.0, 0.0, 1.0, 1.0),
+        "g": (0.0, 0.5, 0.0, 1.0),
+        "r": (1.0, 0.0, 0.0, 1.0),
+        "c": (0.0, 0.75, 0.75, 1.0),
+        "m": (0.75, 0.0, 0.75, 1.0),
+        "y": (0.75, 0.75, 0.0, 1.0),
+        "k": (0.0, 0.0, 0.0, 1.0),
+        "w": (1.0, 1.0, 1.0, 1.0),
+    }
 
     fig = plt.gcf()
     axes = plt.gca()
@@ -89,8 +91,9 @@ def set_node_facecolor(G, **kwargs):
         facecolor_array = nodes_collection.get_facecolor().tolist()
         facecolor_array = [tuple(x) for x in facecolor_array]
         if len(facecolor_array) == 1:
-            facecolor_array = [copy.deepcopy(facecolor_array[0])
-                               for i in range(no_of_nodes)]
+            facecolor_array = [
+                copy.deepcopy(facecolor_array[0]) for i in range(no_of_nodes)
+            ]
         facecolor_array[node_index] = colors_dict[color]
         nodes_collection.set_facecolor(facecolor_array)
 
@@ -104,49 +107,62 @@ def set_node_facecolor(G, **kwargs):
 def compute_state_counts(trajectories, resolution, max_time):
     """
     bin and count what states are in what bins
-    Takes: 
+    Takes:
         list of trajectories objects
         resolution(float): bin size
         time_stop(float): time upper bound on counting
     """
 
     states = []
-    for i in np.arange(0, max_time, resolution): 
-        for traj in trajectories: 
+    for i in np.arange(0, max_time, resolution):
+        for traj in trajectories:
             states.append(traj.state_at_time(i))
-    
+
     states_active = list(set(states))
     states_np = np.array(states)
-    count_dict = {state:  np.count_nonzero(states_np == state) for state in states_active}
+    count_dict = {
+        state: np.count_nonzero(states_np == state) for state in states_active
+    }
     return count_dict
-    
 
-def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, resolution = 0.1, title = None, xlabel = None, ylabel = None, save = False, save_name = None): 
+
+def plot_top_n_states(
+    trajectories,
+    total_states,
+    n_show=5,
+    max_time=100,
+    resolution=0.1,
+    title=None,
+    xlabel=None,
+    ylabel=None,
+    save=False,
+    save_name=None,
+):
     """
     given a list of trajectory objects and n plot the dynamics of the top n states
-    
-    Takes: 
+
+    Takes:
         trajectories: list of trajectory objects
         n(int): number of states to plot
         total_states(int): total number of states in the system
         time_stop(float): time upper bound on plotting
     """
-    count_dict = compute_state_counts(trajectories, resolution, max_time)   
+    count_dict = compute_state_counts(trajectories, resolution, max_time)
     keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
-    
+
     x_axis = np.arange(0, max_time, resolution)
     counts_per_state = np.zeros((n_show, len(x_axis)))
 
     for traj in trajectories:
-        for ind, i in enumerate(x_axis): 
+        for ind, i in enumerate(x_axis):
             state = traj.state_at_time(i)
-            if state in keys_top_n: 
+            if state in keys_top_n:
                 counts_per_state[keys_top_n.index(state), ind] += 1
 
     for i in range(n_show):
-        plt.plot(x_axis, counts_per_state[i,:]/total_states, label = keys_top_n[i])
-    
-    if title: 
+        plt.plot(x_axis, counts_per_state[i, :] / total_states, label=keys_top_n[i])
+
+    if title:
         plt.title(title)
     if xlabel:
         plt.xlabel(xlabel)
@@ -160,11 +176,21 @@ def plot_top_n_states(trajectories, total_states, n_show = 5, max_time = 100, re
     plt.show()
 
 
-def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, title = None, xlabel = None, ylabel = None, save = False, save_name = None): 
+def plot_states(
+    trajectories,
+    states_to_plot,
+    max_time=100,
+    resolution=0.1,
+    title=None,
+    xlabel=None,
+    ylabel=None,
+    save=False,
+    save_name=None,
+):
     """
     given a list of trajectory objects and n plot the dynamics of the top n states
-    
-    Takes: 
+
+    Takes:
         trajectories: list of trajectory objects
         states_to_plot(list): list of states to plot
         total_states(int): total number of states in the system
@@ -173,21 +199,21 @@ def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, 
         resolution(float): bin size
     """
 
-    #count_dict = compute_state_counts(trajectories, resolution, max_time)   
-    #keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
-    
+    # count_dict = compute_state_counts(trajectories, resolution, max_time)
+    # keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
+
     x_axis = np.arange(0, max_time, resolution)
     counts_per_state = np.zeros((int(len(states_to_plot)), len(x_axis)))
 
     for traj in trajectories:
-        for ind, i in enumerate(x_axis): 
+        for ind, i in enumerate(x_axis):
             state = traj.state_at_time(i)
-            if state in states_to_plot: 
+            if state in states_to_plot:
                 counts_per_state[states_to_plot.index(state), ind] += 1
 
     for i in range(len(states_to_plot)):
-        plt.plot(x_axis, counts_per_state[i,:], label = states_to_plot[i])
-    if title: 
+        plt.plot(x_axis, counts_per_state[i, :], label=states_to_plot[i])
+    if title:
         plt.title(title)
     if xlabel:
         plt.xlabel(xlabel)
@@ -199,7 +225,16 @@ def plot_states(trajectories, states_to_plot, max_time = 100, resolution = 0.1, 
     plt.show()
 
 
-def graph_trajectories_static(time, trajectories, energies, ret_pos = False, pos=None, ax=None, save=False, save_name="test.png"): 
+def graph_trajectories_static(
+    time,
+    trajectories,
+    energies,
+    ret_pos=False,
+    pos=None,
+    ax=None,
+    save=False,
+    save_name="test.png",
+):
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
     """
@@ -207,96 +242,88 @@ def graph_trajectories_static(time, trajectories, energies, ret_pos = False, pos
     G = nx.DiGraph()
 
     energies_binary = np.zeros((len(energies), len(energies)))
-    
+
     for i in range(len(energies)):
-        for j in range(len(energies)): 
-            if energies[i][j] > 0: 
+        for j in range(len(energies)):
+            if energies[i][j] > 0:
                 G.add_weighted_edges_from(
-                    [(i, j, energies[i][j])], 
-                    label=round(energies[i][j], 2)
-                    )
+                    [(i, j, energies[i][j])], label=round(energies[i][j], 2)
+                )
                 energies_binary[i][j] = 1
-    
+
     # set of nodes in graph
     nodes_list = list(G.nodes())
 
-    #counts = {}
+    # counts = {}
     print(nodes_list)
     counts = {i: 0 for i in nodes_list}
-    
+
     for traj in trajectories:
         state = traj.state_at_time(time)
         if state in counts:
             counts[state] += 1
         else:
             counts[state] = 1
-    
-    
-    # sort counts by key 
+
+    # sort counts by key
     counts = dict(sorted(counts.items()))
     counts_list = list(counts.values())
-    counts_transformed = [400+(i/10) for i in counts_list]
+    counts_transformed = [400 + (i / 10) for i in counts_list]
     print(counts_list)
     if pos is None:
         pos = nx.spring_layout(G)
-    
+
     if ax != None:
         nodes = nx.draw_networkx_nodes(
-            G, 
-            pos, 
-            node_color=counts_transformed, 
-            node_size=counts_transformed,
-            cmap=plt.cm.YlOrRd, 
-            ax=ax)
-        # Set edge color to red
-        nodes.set_edgecolor('r')
-        nx.draw_networkx_edges(
-            G, 
+            G,
             pos,
-            arrowstyle='-|>',
-            arrowsize=20, 
-            ax=ax)
+            node_color=counts_transformed,
+            node_size=counts_transformed,
+            cmap=plt.cm.YlOrRd,
+            ax=ax,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        nx.draw_networkx_edges(G, pos, arrowstyle="-|>", arrowsize=20, ax=ax)
         # Uncomment this if you want your labels
         nx.draw_networkx_labels(G, pos, ax=ax)
         # edge labels
         nx.draw_networkx_edge_labels(
-            G, 
-            pos, 
-            edge_labels=nx.get_edge_attributes(G, 'label'),
-            ax=ax)
-    else: 
+            G, pos, edge_labels=nx.get_edge_attributes(G, "label"), ax=ax
+        )
+    else:
         nodes = nx.draw_networkx_nodes(
-            G, 
-            pos, 
-            node_color=counts_transformed, 
-            node_size=counts_transformed,
-            cmap=plt.cm.YlOrRd, 
-            )
-        # Set edge color to red
-        nodes.set_edgecolor('r')
-        nx.draw_networkx_edges(
-            G, 
+            G,
             pos,
-            arrowstyle='-|>',
-            arrowsize=20, 
-            )
+            node_color=counts_transformed,
+            node_size=counts_transformed,
+            cmap=plt.cm.YlOrRd,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        nx.draw_networkx_edges(
+            G,
+            pos,
+            arrowstyle="-|>",
+            arrowsize=20,
+        )
         # Uncomment this if you want your labels
         nx.draw_networkx_labels(G, pos, ax=ax)
         # edge labels
         nx.draw_networkx_edge_labels(
-            G, 
-            pos, 
-            edge_labels=nx.get_edge_attributes(G, 'label'),
-            )
+            G,
+            pos,
+            edge_labels=nx.get_edge_attributes(G, "label"),
+        )
 
     plt.show()
-    if ret_pos: 
+    if ret_pos:
         return pos
     if save:
         plt.savefig(save_name)
 
 
-def single_frame(time, trajectories, rates, pos, n_states, ax=None): 
+def single_frame(time, trajectories, rates, pos, n_states, ax=None):
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
 
@@ -308,170 +335,157 @@ def single_frame(time, trajectories, rates, pos, n_states, ax=None):
 
     rates_binary = np.zeros((len(rates), len(rates)))
     for i in range(len(rates)):
-        for j in range(len(rates)): 
-            if rates[i][j] > 0: 
+        for j in range(len(rates)):
+            if rates[i][j] > 0:
                 G.add_weighted_edges_from(
-                    [(i, j, rates[i][j])], 
-                    label=round(rates[i][j], 2)
-                    )
+                    [(i, j, rates[i][j])], label=round(rates[i][j], 2)
+                )
                 rates_binary[i][j] = 1
-    
-    counts = {i:0 for i in range(n_states)}
+
+    counts = {i: 0 for i in range(n_states)}
     for traj in trajectories:
         state = traj.state_at_time(time)
         if state in counts:
             counts[state] += 1
         else:
             counts[state] = 1
-    
-    
-    # sort counts by key 
+
+    # sort counts by key
     counts = dict(sorted(counts.items()))
     counts_list = list(counts.values())
-    counts_transformed = [400+(i) for i in counts_list]
-    
+    counts_transformed = [400 + (i) for i in counts_list]
+
     if ax != None:
         nodes = nx.draw_networkx_nodes(
-            G, 
-            pos, 
-            node_color=counts_transformed, 
-            node_size=counts_transformed,
-            cmap=plt.cm.YlOrRd, 
-            ax=ax)
-        # Set edge color to red
-        nodes.set_edgecolor('r')
-        e = nx.draw_networkx_edges(
-            G, 
+            G,
             pos,
-            arrowstyle='-|>',
-            arrowsize=20, 
-            ax=ax)
+            node_color=counts_transformed,
+            node_size=counts_transformed,
+            cmap=plt.cm.YlOrRd,
+            ax=ax,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        e = nx.draw_networkx_edges(G, pos, arrowstyle="-|>", arrowsize=20, ax=ax)
         # Uncomment this if you want your labels
         n_labels = nx.draw_networkx_labels(G, pos, ax=ax)
         # edge labels
         e_labels = nx.draw_networkx_edge_labels(
-            G, 
-            pos, 
-            edge_labels=nx.get_edge_attributes(G, 'label'),
-            ax=ax)
-    else: 
+            G, pos, edge_labels=nx.get_edge_attributes(G, "label"), ax=ax
+        )
+    else:
         nodes = nx.draw_networkx_nodes(
-            G, 
-            pos, 
-            node_color=counts_transformed, 
-            node_size=counts_transformed,
-            cmap=plt.cm.YlOrRd, 
-            )
-        # Set edge color to red
-        nodes.set_edgecolor('r')
-        e = nx.draw_networkx_edges(
-            G, 
+            G,
             pos,
-            arrowstyle='-|>',
-            arrowsize=20, 
-            )
+            node_color=counts_transformed,
+            node_size=counts_transformed,
+            cmap=plt.cm.YlOrRd,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        e = nx.draw_networkx_edges(
+            G,
+            pos,
+            arrowstyle="-|>",
+            arrowsize=20,
+        )
         # Uncomment this if you want your labels
         n_labels = nx.draw_networkx_labels(G, pos, ax=ax)
         # edge labels
         e_labels = nx.draw_networkx_edge_labels(
-            G, 
-            pos, 
-            edge_labels=nx.get_edge_attributes(G, 'label'),
-            )
+            G,
+            pos,
+            edge_labels=nx.get_edge_attributes(G, "label"),
+        )
 
-    return nodes, e, n_labels, e_labels,
+    return (
+        nodes,
+        e,
+        n_labels,
+        e_labels,
+    )
 
 
-def single_frame_slider(frame, trajectories, energies, pos, n_states, ax=None): 
+def single_frame_slider(frame, trajectories, energies, pos, n_states, ax=None):
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
     """
-    
+
     axis = plt.gca()
     axis.clear()
-    
-        
-    
-    #print(frame)
+
+    # print(frame)
     G = nx.DiGraph()
 
     energies = np.zeros((len(energies), len(energies)))
     for i in range(len(energies)):
-        for j in range(len(energies)): 
-            if energies[i][j] > 0: 
+        for j in range(len(energies)):
+            if energies[i][j] > 0:
                 G.add_weighted_edges_from(
-                    [(i, j, energies[i][j])], 
-                    label=round(energies[i][j], 2)
-                    )
+                    [(i, j, energies[i][j])], label=round(energies[i][j], 2)
+                )
                 energies[i][j] = 1
-    
-    counts = {i:0 for i in range(n_states)}
+
+    counts = {i: 0 for i in range(n_states)}
     for traj in trajectories:
         state = traj.state_at_time(frame)
         if state in counts:
             counts[state] += 1
         else:
             counts[state] = 1
-    
-    
-    # sort counts by key 
+
+    # sort counts by key
     counts = dict(sorted(counts.items()))
     counts_list = list(counts.values())
-    counts_transformed = [400+(i) for i in counts_list]
-    
+    counts_transformed = [400 + (i) for i in counts_list]
+
     if ax != None:
         nodes = nx.draw_networkx_nodes(
-            G, 
-            pos, 
-            node_color=counts_transformed, 
-            node_size=counts_transformed,
-            cmap=plt.cm.YlOrRd, 
-            ax=ax)
-        # Set edge color to red
-        nodes.set_edgecolor('r')
-        e = nx.draw_networkx_edges(
-            G, 
+            G,
             pos,
-            arrowstyle='-|>',
-            arrowsize=20, 
-            ax=ax)
+            node_color=counts_transformed,
+            node_size=counts_transformed,
+            cmap=plt.cm.YlOrRd,
+            ax=ax,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        e = nx.draw_networkx_edges(G, pos, arrowstyle="-|>", arrowsize=20, ax=ax)
         # Uncomment this if you want your labels
         n_labels = nx.draw_networkx_labels(G, pos, ax=ax)
         # edge labels
         e_labels = nx.draw_networkx_edge_labels(
-            G, 
-            pos, 
-            edge_labels=nx.get_edge_attributes(G, 'label'),
-            ax=ax)
-    else: 
+            G, pos, edge_labels=nx.get_edge_attributes(G, "label"), ax=ax
+        )
+    else:
         nodes = nx.draw_networkx_nodes(
-            G, 
-            pos, 
-            node_color=counts_transformed, 
-            node_size=counts_transformed,
-            cmap=plt.cm.YlOrRd, 
-            )
-        # Set edge color to red
-        nodes.set_edgecolor('r')
-        e = nx.draw_networkx_edges(
-            G, 
+            G,
             pos,
-            arrowstyle='-|>',
-            arrowsize=20, 
-            )
+            node_color=counts_transformed,
+            node_size=counts_transformed,
+            cmap=plt.cm.YlOrRd,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        e = nx.draw_networkx_edges(
+            G,
+            pos,
+            arrowstyle="-|>",
+            arrowsize=20,
+        )
         # Uncomment this if you want your labels
         n_labels = nx.draw_networkx_labels(G, pos, ax=ax)
         # edge labels
         e_labels = nx.draw_networkx_edge_labels(
-            G, 
-            pos, 
-            edge_labels=nx.get_edge_attributes(G, 'label'),
-            )
+            G,
+            pos,
+            edge_labels=nx.get_edge_attributes(G, "label"),
+        )
 
-    #return nodes, e, n_labels, e_labels,
+    # return nodes, e, n_labels, e_labels,
 
 
-def graph_pos(rates): 
+def graph_pos(rates):
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph
     """
@@ -479,22 +493,21 @@ def graph_pos(rates):
     G = nx.DiGraph()
 
     rates_binary = np.zeros((len(rates), len(rates)))
-    
+
     for i in range(len(rates)):
-        for j in range(len(rates)): 
-            if rates[i][j] > 0: 
+        for j in range(len(rates)):
+            if rates[i][j] > 0:
                 G.add_weighted_edges_from(
-                    [(i, j, rates[i][j])], 
-                    label=round(rates[i][j], 2)
-                    )
+                    [(i, j, rates[i][j])], label=round(rates[i][j], 2)
+                )
                 rates_binary[i][j] = 1
-    
+
     pos = nx.spring_layout(G)
 
-    return pos 
+    return pos
 
 
-def get_node_info_at_time(trajectories, time, shift = 400, scale = 10): 
+def get_node_info_at_time(trajectories, time, shift=400, scale=10):
     counts = {}
     for traj in trajectories:
         state = traj.state_at_time(time)
@@ -502,16 +515,15 @@ def get_node_info_at_time(trajectories, time, shift = 400, scale = 10):
             counts[state] += 1
         else:
             counts[state] = 1
-    
-    
-    # sort counts by key 
+
+    # sort counts by key
     counts = dict(sorted(counts.items()))
     counts_list = list(counts.values())
-    counts_transformed = [shift+(i/scale) for i in counts_list]
+    counts_transformed = [shift + (i / scale) for i in counts_list]
     return counts_transformed
 
 
-def graph_trajectories_dynamic(trajectories, energies, time_max, n_states, file_name): 
+def graph_trajectories_dynamic(trajectories, energies, time_max, n_states, file_name):
     """
     given a list of trajectories, plot as an animated graph from 0 to time_to_plot
     """
@@ -519,18 +531,22 @@ def graph_trajectories_dynamic(trajectories, energies, time_max, n_states, file_
     pos = graph_pos(energies)
 
     fig = plt.gcf()
-    ani = animation.FuncAnimation(fig, 
-        single_frame, 
+    ani = animation.FuncAnimation(
+        fig,
+        single_frame,
         fargs=(trajectories, energies, pos, n_states),
-        blit=False, frames = np.arange(0,time_max,1), interval=10, repeat=True)
-    file_name_25 = file_name + '_25.gif'
-    file_name_10 = file_name + '_10.gif'
-    ani.save(file_name_10, writer='imagemagick', fps=10)
-    ani.save(file_name_25, writer='imagemagick', fps=25)
-        
-    
+        blit=False,
+        frames=np.arange(0, time_max, 1),
+        interval=10,
+        repeat=True,
+    )
+    file_name_25 = file_name + "_25.gif"
+    file_name_10 = file_name + "_10.gif"
+    ani.save(file_name_10, writer="imagemagick", fps=10)
+    ani.save(file_name_25, writer="imagemagick", fps=25)
 
-def communities_static(trajectories, time_to_plot): 
+
+def communities_static(trajectories, time_to_plot):
     """
     given a list of trajectories, plot the state of at time_to_plot as a graph w/ labelled communities
     """
@@ -546,26 +562,25 @@ def graph_slider(trajectories, rates, time_max, n_states, file_name):
 
     freq_slider = Slider(
         axfreq,
-        'Frame',
+        "Frame",
         0.0,
         time_max,
         1.0,
-        handle_style = {'facecolor':'red'}, 
-        track_color="lightgrey", 
+        handle_style={"facecolor": "red"},
+        track_color="lightgrey",
         facecolor="lightgrey",
-        initcolor='red'
+        initcolor="red",
     )
 
     pos = graph_pos(rates)
 
-    def helper_plot(init_frame): 
-        #reset ax 
+    def helper_plot(init_frame):
+        # reset ax
         ax.clear()
         single_frame_slider(init_frame, trajectories, rates, pos, n_states, ax)
 
     helper_plot(init_frame=0)
     freq_slider.on_changed(helper_plot)
-    
+
     fig.canvas.draw_idle()
     plt.show()
-

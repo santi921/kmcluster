@@ -133,7 +133,6 @@ if __name__ == "__main__":
         draw_crit=rfkmc_obj,
         initialization=init_random,
         memory_friendly=True,
-        checkpoint=True,
         check_converged=False,
         checkpoint_dir="./checkpoints/",
         final_save_prefix="saved_data",
