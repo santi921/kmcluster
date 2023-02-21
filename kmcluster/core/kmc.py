@@ -416,7 +416,7 @@ class kmc_temp_ramp(kmc):
                 self.last_save_ind = max([int(i) for i in ind_save])
 
             #load trajectories from last save
-            self.
+            #self.
 
 
 

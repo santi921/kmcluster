@@ -120,7 +120,7 @@ if __name__ == "__main__":
     energies_mat = sparse_to_mat(Pt_H1_all)
 
     # initalize all the normal values
-    temp_boltz = 150 * 8.617 * 10 ** (-5)
+    temp_boltz = 100 * 8.617 * 10 ** (-5)
     k_b_ev = 8.614 * 10**-5
     rfkmc_obj = rfkmc(k_b_t=temp_boltz)
     init_boltz = boltz(energies=H1_E, T=temp_boltz, size=10000)
