@@ -1,4 +1,5 @@
 import json, os
+import pandas as pd 
 import numpy as np
 from tqdm import tqdm
 from glob import glob
@@ -36,6 +37,7 @@ class kmc:
         self.checkpoint_dir = checkpoint_dir
         self.pop_prop_hist = []
         self.save_ind = 1
+        self.n_states = energies.shape[0]
 
         assert (
             trajectories is not None or initialization is not None
@@ -184,6 +186,23 @@ class kmc:
                 ret_dict[state_temp] += 1
 
         return ret_dict
+    
+    def get_state_dict_at_time_as_pandas(self, t=0):
+        """
+        Returns a pandas dataframe of states and their counts at time t
+        Takes:
+            t: time to get state counts at
+        Returns:
+            ret_df: pandas dataframe of states and their counts
+        """
+        ret_dict = self.get_state_dict_at_time(t=t)
+        # fill in missing states with 0 
+        for i in range(self.n_states):
+            if str(i) not in ret_dict.keys():
+                ret_dict[str(i)] = 0
+        ret_df = pd.DataFrame.from_dict(ret_dict, orient='index')
+        ret_df.columns = ['count']
+        return ret_df
 
     def save_as_matrix(self, file, start_time=0, end_time=100, step=1, append=False):
         """
@@ -233,191 +252,6 @@ class kmc:
             for t in range(start_time, end_time, step):
                 master_dict[t] = self.get_state_dict_at_time(t)
             json.dump(master_dict, f)
-
-
-# create class that inherits from kmc
-class kmc_temp_ramp(kmc):
-    def __init__(
-        self,
-        draw_crit,
-        energies,
-        memory_friendly,
-        time_dict,
-        initialization=None,
-        checkpoint=False,
-        checkpoint_dir="./checkpoints/",
-        save_prefix="test_temp_ramp",
-        trajectories=None,
-        load=False,
-        save_freq=1000,
-    ):
-        self.kb_const_ev = 8.617 * 10 ** (-5)
-        self.draw_crit = draw_crit
-        self.memory_friendly = memory_friendly
-        self.energies = energies
-        self.time_dict = time_dict
-        self.initialization = initialization
-        self.checkpoint = checkpoint
-        self.save_prefix = save_prefix
-        self.checkpoint_dir = checkpoint_dir
-        self.pop_prop_hist = []
-        self.save_ind = 1
-        self.ramp_ind = 0 
-
-        assert (
-            trajectories is not None or initialization is not None
-        ), "init and trajectories cannot both be not None"
-
-        if checkpoint:
-            # check if the checkpoint directory exists'
-            if not os.path.exists(self.checkpoint_dir):
-                os.makedirs(self.checkpoint_dir)
-
-        if trajectories is None:
-            self.pop_init = initialization.get_init_populations()
-            self.trajectories = population_ind_to_trajectories(self.pop_init)
-            self.pop_size = initialization.size
-        else:
-            self.pop_size = len(trajectories)
-            self.trajectories = trajectories
-
-    def step(self, draw_crit, time_stop):
-        sum_warning = 0
-        for traj in self.trajectories:
-            # get last state in traj
-            traj_last_ind = traj.last_state()
-
-            if self.time_stop > 0:
-                traj_last_time = traj.last_time()
-                # print(traj_last_time)
-                if traj_last_time > self.time_stop:
-                    continue
-                else:
-                    # print("last traj_ind: " + str(traj_last_ind))
-                    energies_from_i = self.energies[traj_last_ind]
-                    warning = traj.step(
-                        energies_from_i, draw_crit, time_stop=time_stop
-                    )
-                    sum_warning += warning
-            else:
-                energies_from_i = self.energies[traj_last_ind]
-                warning = traj.step(
-                    energies_from_i, draw_crit, time_stop=time_stop
-                )
-                sum_warning += warning
-
-        if sum_warning > 1:
-            print("Warning: trajectories in this step have steps sizes < 1e-15s\n")
-
-    def run(self):
-        time_dict = self.time_dict
-        dict_ind = 0
-        time_stop = 0
-        
-        for key, time_interval in time_dict.items():
-            time_stop += time_interval 
-
-            if self.draw_crit == "rfkmc":
-                draw_crit_obj = rfkmc(self.kb_const_ev * float(key))
-            elif self.draw_crit == "rkmc":
-                draw_crit_obj = rkmc(self.kb_const_ev * float(key))
-            else:
-                raise ValueError("draw_crit must be rkmc or rfkmc")
-
-            self.step_count = 0
-            # check if all trajectories have reached time_stop
-            last_time_arr = np.array([time_stop for i in self.trajectories])
-
-            while not all([i > time_stop for i in last_time_arr]):
-                lowest_time = np.min(last_time_arr)
-
-                if self.step_count % 100 == 0:
-                    print(
-                        "Lowest time at step {}: {:.5e}\n".format(
-                            self.step_count, lowest_time
-                        )
-                    )
-
-                
-                self.step_count = self.step_count + 1
-                self.step(draw_crit_obj, time_stop)
-                last_time_arr = np.array([time_stop for i in self.trajectories])
-
-
-                if self.checkpoint:
-                    if lowest_time > self.time_stop * self.save_ind / 2:
-                        print("saving checkpoint at step {}".format(self.step_count))
-
-                        time_save = self.time_stop * self.save_ind / 2
-                        save_step = time_save / 500
-
-                        self.save_as_matrix(
-                            file="{}{}_trajectories_ckpt_{}".format(
-                                self.checkpoint_dir, self.save_prefix, dict_ind
-                            ),
-                            start_time=0,
-                            end_time=time_save,
-                            step=save_step,
-                            append=True,
-                        )
-
-                        self.save_ind = self.save_ind + 1
-
-                if self.memory_friendly:
-                    if lowest_time > time_stop * self.save_ind / 2:
-                        print(
-                            "coarsening trajectories at step {}\n".format(
-                                self.step_count
-                            )
-                        )
-                        time_save = time_stop * self.save_ind / 10
-                        # time_save = np.min(self.time_stop * (self.save_ind - 1) / 10, 0)
-                        save_step = time_save / (10 * self.save_ind)
-
-                        traj_lists = []
-
-                        for i in self.trajectories:
-                            traj_lists.append(
-                                sample_trajectory(i, 0, time_save, save_step)
-                            )
-                        traj_new = [
-                            trajectory_from_list(i[0], 0, time_save) for i in traj_lists
-                        ]
-                        self.trajectories = traj_new
-                        self.save_ind = self.save_ind + 1
-
-            
-            # save run
-            start_time = 0
-            end_time = self.time_stop
-            step = float((end_time - start_time) / 1000)
-
-            self.save_as_matrix(
-                file="{}{}_trajectories_{}_ckpt".format(
-                    self.checkpoint_dir, self.final_save_prefix, self.ramp_ind
-                ),
-                start_time=start_time,
-                end_time=end_time,
-                step=step,
-                append=False,
-            )
-            self.ramp_ind = self.ramp_ind + 1
-
-    def load(self):
-        # TODO
-        #retrieve all files with save_prefix in checkpoint_dir
-        if self.checkpoint:
-            files_checkpoint = glob(
-                self.checkpoint_dir + self.save_prefix + "*"
-            )
-            ind_save = [i.split("/")[-1].split(".")[-2].split("_")[-1] for i in files_checkpoint]
-            # get index of last save
-            if len(ind_save) > 0:
-                self.last_save_ind = max([int(i) for i in ind_save])
-
-            #load trajectories from last save
-            #self.
-
 
 
 
