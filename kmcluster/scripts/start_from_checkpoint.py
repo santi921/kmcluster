@@ -121,7 +121,7 @@ if __name__ == "__main__":
 
     # initalize all the normal values
     temp_boltz = 100 * 8.617 * 10 ** (-5)
-    k_b_ev = 8.614 * 10**-5
+    
     rfkmc_obj = rfkmc(k_b_t=temp_boltz)
     init_boltz = boltz(energies=H1_E, T=temp_boltz, size=10000)
     init_random = random_init(10000, energies_mat.shape[0])
