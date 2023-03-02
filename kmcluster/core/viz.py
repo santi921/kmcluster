@@ -104,7 +104,7 @@ def set_node_facecolor(G, **kwargs):
     plt.draw()
 
 
-def compute_state_counts(trajectories, resolution, max_time):
+def compute_state_counts(trajectories, resolution, max_time, total_states):
     """
     bin and count what states are in what bins
     Takes:
@@ -123,6 +123,10 @@ def compute_state_counts(trajectories, resolution, max_time):
     count_dict = {
         state: np.count_nonzero(states_np == state) for state in states_active
     }
+    for i in range(total_states):
+        if i not in count_dict:
+            count_dict[i] = 0
+
     return count_dict
 
 
@@ -147,7 +151,7 @@ def plot_top_n_states(
         total_states(int): total number of states in the system
         time_stop(float): time upper bound on plotting
     """
-    count_dict = compute_state_counts(trajectories, resolution, max_time)
+    count_dict = compute_state_counts(trajectories, resolution, max_time, total_states)
     keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
 
     x_axis = np.arange(0, max_time, resolution)
@@ -176,9 +180,11 @@ def plot_top_n_states(
     plt.show()
 
 
+
 def plot_states(
     trajectories,
     states_to_plot,
+    total_states,
     max_time=100,
     resolution=0.1,
     title=None,
@@ -212,7 +218,7 @@ def plot_states(
                 counts_per_state[states_to_plot.index(state), ind] += 1
 
     for i in range(len(states_to_plot)):
-        plt.plot(x_axis, counts_per_state[i, :], label=states_to_plot[i])
+        plt.plot(x_axis, counts_per_state[i, :]/total_states, label=states_to_plot[i])
     if title:
         plt.title(title)
     if xlabel:

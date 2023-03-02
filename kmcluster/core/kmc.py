@@ -3,6 +3,9 @@ import pandas as pd
 import numpy as np
 from tqdm import tqdm
 from glob import glob
+import matplotlib.pyplot as plt 
+import plotly.express as px
+
 from kmcluster.core.trajectory import (
     trajectory, 
     trajectory_from_list, 
@@ -11,8 +14,7 @@ from kmcluster.core.trajectory import (
 )
 from kmcluster.core.intialize import population_ind_to_trajectories
 from kmcluster.core.transition_conditions import rfkmc, rkmc
-
-
+from kmcluster.core.viz import compute_state_counts
 class kmc:
     def __init__(
         self,
@@ -102,6 +104,8 @@ class kmc:
                             self.step_count, lowest_time
                         )
                     )
+                    self.lowest_time = lowest_time
+
                 self.step_count = self.step_count + 1
                 self.step()
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
@@ -164,6 +168,18 @@ class kmc:
                 append=False,
             )
 
+            print(
+                    "Lowest time at step {}: {:.5e}\n".format(
+                        self.step_count, lowest_time
+                    )
+                )
+            self.lowest_time = lowest_time
+
+            self.step_count = self.step_count + 1
+            self.step()
+            last_time_arr = np.array([i.last_time() for i in self.trajectories])
+
+
         else:
             for _ in tqdm(range(n_steps)):
                 self.step()
@@ -176,14 +192,11 @@ class kmc:
         Returns:
             ret_dict: dictionary of states and their counts
         """
-        ret_dict = {}
+        ret_dict = {str(i):0 for i in range(self.n_states)}
 
         for i in self.trajectories:
             state_temp = str(i.state_at_time(t))
-            if state_temp not in ret_dict.keys():
-                ret_dict[state_temp] = 1
-            else:
-                ret_dict[state_temp] += 1
+            ret_dict[state_temp] += 1
 
         return ret_dict
     
@@ -202,6 +215,7 @@ class kmc:
                 ret_dict[str(i)] = 0
         ret_df = pd.DataFrame.from_dict(ret_dict, orient='index')
         ret_df.columns = ['count']
+        
         return ret_df
 
     def save_as_matrix(self, file, start_time=0, end_time=100, step=1, append=False):
@@ -253,8 +267,189 @@ class kmc:
                 master_dict[t] = self.get_state_dict_at_time(t)
             json.dump(master_dict, f)
 
+    def plot_top_n_states(
+            self, 
+            n_show=5, 
+            resolution=None, 
+            max_time=None,
+            xlabel=None, 
+            ylabel=None,
+            title=None,
+            save=False,
+            save_name="./output_top.png", ):
+        """
+        bin and count what states are in what bins
+        Takes:
+            list of trajectories objects
+            resolution(float): bin size
+            time_stop(float): time upper bound on counting
+        """
+        if max_time is None:
+            max_time = self.lowest_time
+        if resolution is None:
+            resolution = self.lowest_time / 100
 
+        count_dict = compute_state_counts(self.trajectories, resolution, max_time, self.n_states)
+        keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
+        x_axis = np.arange(0, max_time, resolution)
+        counts_per_state = np.zeros((n_show, len(x_axis)))
+        
+        for ind, i in enumerate(x_axis):
+            # get state dict as pandas 
+            state_df = self.get_state_dict_at_time_as_pandas(t=i)
+            # get counts for top n states
+            df_ind = [int(i) for i in state_df.index.to_list()]
+            list_get = [i for i in keys_top_n if i in df_ind]
+            
+            # get rows list_get rows from state_df
+            for ind_update in range(len(list_get)):
+                #print(state_df.iloc[list_get[ind_overwrite]]['count'])
+                counts_per_state[ind_update, ind] = state_df.iloc[list_get[ind_update]]['count']
+        
+        for i in range(n_show):
+            plt.plot(x_axis, counts_per_state[i, :] / self.n_states, label=keys_top_n[i])
 
+        if title:
+            plt.title(title)
+        if xlabel:
+            plt.xlabel(xlabel)
+        if ylabel:
+            plt.ylabel(ylabel)
+        if save:
+            plt.savefig(save_name)
+        # adjust x axis to min, max time
+        plt.xlim(0, max_time)
+        plt.ylim(counts_per_state.min()/self.n_states - 10 , counts_per_state.max()/self.n_states + 10)
+        plt.legend()
+        plt.show()  
+
+    def plot_top_n_states_stacked(
+            self, 
+            n_show=5, 
+            resolution=None, 
+            max_time=None,
+            title=None,
+            save=False,
+            save_name="./output_top.png", ):
+        """
+        bin and count what states are in what bins
+        Takes:
+            list of trajectories objects
+            resolution(float): bin size
+            time_stop(float): time upper bound on counting
+        """
+        if n_show == -1:
+            n_show = self.n_states
+
+        if max_time is None:
+            max_time = self.lowest_time
+        
+        if resolution is None:
+            resolution = self.lowest_time / 100
+
+        count_dict = compute_state_counts(self.trajectories, resolution, max_time, self.n_states)
+        
+        if n_show >= self.n_states:
+            keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)
+
+        else:  
+            keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
+
+        x_axis = np.arange(0, max_time, resolution)
+        counts_per_state = np.zeros((n_show, len(x_axis)))
+        
+        for ind, i in enumerate(x_axis):
+            # get state dict as pandas 
+            state_df = self.get_state_dict_at_time_as_pandas(t=i)
+            sum_count = state_df['count'].sum()
+            # get counts for top n states
+            df_ind = [int(i) for i in state_df.index.to_list()]
+            list_get = [i for i in keys_top_n if i in df_ind]
+            
+            # get rows list_get rows from state_df
+            for ind_update in range(len(list_get)):
+                #print(state_df.iloc[list_get[ind_overwrite]]['count'])
+                counts_per_state[ind_update, ind] = state_df.iloc[list_get[ind_update]]['count']/sum_count
+        
+
+        df = pd.DataFrame(counts_per_state, index=keys_top_n, columns=x_axis)
+        df_new_format = pd.DataFrame(columns=['time', 'state', 'percentage'])
+        for i in range(n_show):
+            df_new_format = df_new_format.append(pd.DataFrame({'time': df.columns, 'state': df.index[i], 'percentage': df.iloc[i, :]}))
+        df = df_new_format
+        df = df.sort_values(by=['time', 'state'])   
+
+        fig = px.area(df, title=title, x='time', y='percentage', color='state')
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, 1])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        # save plotly express figure 
+        if save:
+            fig.write_image(save_name)
+        fig.show()
+
+    def plot_select_states_stacked(
+            self, 
+            states_to_plot,
+            resolution=None, 
+            max_time=None,
+            title=None,
+            save=False,
+            save_name="./output_top.png", ):
+        """
+        bin and count what states are in what bins
+        Takes:
+            list of trajectories objects
+            resolution(float): bin size
+            time_stop(float): time upper bound on counting
+        """
+
+        if max_time is None:
+            max_time = self.lowest_time
+        
+        if resolution is None:
+            resolution = self.lowest_time / 100
+
+        x_axis = np.arange(0, max_time, resolution)
+        counts_per_state = np.zeros((len(states_to_plot), len(x_axis)))
+        
+        for ind, i in enumerate(x_axis):
+            # get state dict as pandas 
+            state_df = self.get_state_dict_at_time_as_pandas(t=i)
+            sum_count = state_df['count'].sum()
+            # get counts for top n states
+            df_ind = [int(i) for i in state_df.index.to_list()]
+            list_get = [i for i in states_to_plot if i in df_ind]
+            
+            # get rows list_get rows from state_df
+            for ind_update in range(len(list_get)):
+                #print(state_df.iloc[list_get[ind_overwrite]]['count'])
+                counts_per_state[ind_update, ind] = state_df.iloc[list_get[ind_update]]['count']/sum_count
+        
+
+        df = pd.DataFrame(counts_per_state, index=states_to_plot, columns=x_axis)
+        df_new_format = pd.DataFrame(columns=['time', 'state', 'percentage'])
+        for i in range(len(states_to_plot)):
+            df_new_format = df_new_format.append(pd.DataFrame({'time': df.columns, 'state': df.index[i], 'percentage': df.iloc[i, :]}))
+        df = df_new_format
+        df = df.sort_values(by=['time', 'state'])   
+
+        fig = px.area(df, title=title, x='time', y='percentage', color='state')
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, 1])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        # save plotly express figure 
+        if save:
+            fig.write_image(save_name)
+        fig.show()
 
 def load_kmc_from_matrix(file, energies_mat, draw_crit, time_stop):
     """

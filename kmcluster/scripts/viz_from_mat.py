@@ -6,6 +6,7 @@ from kmcluster.core.viz import (
     communities_static,
     compute_state_counts,
 )
+from kmcluster.core.kmc import kmc
 
 
 if __name__ == "__main__":
