@@ -102,6 +102,8 @@ class selected(initializer):
         if self.population is None:
             population = [0 for i in range(self.n_states)]
             for k, v in self.selected_proportions.items():
+                # check that no value v is greater than 1
+                assert v <= 1, "selected proportions must be less than 1"
                 population[k] = int(self.size * v)
             self.population = population
 

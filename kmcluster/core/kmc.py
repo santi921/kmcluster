@@ -229,11 +229,13 @@ class kmc:
         Returns:
             None
         """
-
-        mat_save = np.zeros(
-            (self.pop_size, int(np.ceil((end_time - start_time) / step)))
-        )
         sampling_array = np.arange(start_time, end_time, step)
+        mat_save = np.zeros(
+            (self.pop_size, len(sampling_array))
+        )
+        #print(mat_save.shape)
+        #print("number of trajectories: {}".format(len(self.trajectories)))
+        #print("population size: {}".format(self.pop_size))
 
         for ind_t, t in enumerate(sampling_array):
             for ind, i in enumerate(self.trajectories):

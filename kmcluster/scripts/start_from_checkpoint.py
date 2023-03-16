@@ -4,11 +4,7 @@ from kmcluster.core.intialize import random_init, boltz, selected
 from kmcluster.core.data import sparse_to_mat
 
 from kmcluster.core.viz import (
-    plot_top_n_states,
-    plot_states,
-    graph_trajectories_static,
-    communities_static,
-    compute_state_counts,
+    plot_top_n_states
 )
 
 
