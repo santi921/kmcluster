@@ -157,6 +157,9 @@ class kmc:
             start_time = 0
             end_time = self.time_stop
             step = float((end_time - start_time) / 1000)
+            #check is self.checkpoint exists
+            if self.checkpoint and not os.path.exists(self.checkpoint_dir):
+                os.mkdir(self.checkpoint_dir)
 
             self.save_as_matrix(
                 file="{}{}_trajectories_{}_ckpt".format(

@@ -24,7 +24,7 @@ class random_init(initializer):
             # randomly assign size number of members to n_states number of states
             population = [0 for i in range(self.n_states)]
             for i in range(self.size):
-                ind = random.randint(0, self.n_states - 1)
+                ind = random.randint(0, self.n_states)
                 population[ind] = population[ind] + 1
             self.population = population
 
