@@ -28,6 +28,7 @@ class kmc:
         time_stop=-1,
         trajectories=None,
         save_freq=1000,
+        coarsening_mesh=100
     ):
         self.draw_crit = draw_crit
         self.memory_friendly = memory_friendly
@@ -40,6 +41,8 @@ class kmc:
         self.pop_prop_hist = []
         self.save_ind = 1
         self.n_states = energies.shape[0]
+        self.save_freq = save_freq
+        self.coarsening_mesh = coarsening_mesh
 
         assert (
             trajectories is not None or initialization is not None
@@ -57,6 +60,7 @@ class kmc:
         else:
             self.pop_size = len(trajectories)
             self.trajectories = trajectories
+
 
     def step(self):
         sum_warning = 0
@@ -86,8 +90,11 @@ class kmc:
         if sum_warning > 1:
             print("Warning: trajectories in this step have steps sizes < 1e-15s\n")
 
+
     def run(self, n_steps=10):
         if n_steps == -1:
+            
+            trigger = False
             self.step_count = 0
             # check if all trajectories have reached time_stop
             last_time_arr = np.array([i.last_time() for i in self.trajectories])
@@ -96,9 +103,6 @@ class kmc:
                 lowest_time = np.min(last_time_arr)
 
                 if self.step_count % 100 == 0:
-                    # print(
-                    #    "Lowest time at step {}: {:.5f}\n".format(self.step_count, np.min(lowest_time)))
-                    # print lowest time in scientific notation with 5 decimal places
                     print(
                         "Lowest time at step {}: {:.5e}\n".format(
                             self.step_count, lowest_time
@@ -110,13 +114,13 @@ class kmc:
                 self.step()
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
 
-                if self.checkpoint:
-                    if lowest_time > self.time_stop * self.save_ind / 10:
+                if lowest_time > self.time_stop * self.save_ind / 10:
+                    
+                    if self.checkpoint:
+                        print("hit checkpoint {}/10".format(self.save_ind))
                         print("saving checkpoint at step {}".format(self.step_count))
-
                         time_save = self.time_stop * self.save_ind / 10
-
-                        save_step = time_save / 100
+                        save_step = time_save / self.coarsening_mesh
 
                         self.save_as_matrix(
                             file="{}trajectories_{}_ckpt".format(
@@ -127,42 +131,45 @@ class kmc:
                             step=save_step,
                             append=True,
                         )
+                        trigger = True
 
-                        self.save_ind = self.save_ind + 1
 
-                if self.memory_friendly:
-                    if lowest_time > self.time_stop * self.save_ind / 10:
+                    if self.memory_friendly and self.save_ind > 5:
                         print(
                             "coarsening trajectories at step {}\n".format(
                                 self.step_count
                             )
                         )
-                        time_save = self.time_stop * self.save_ind / 10
-                        # time_save = np.min(self.time_stop * (self.save_ind - 1) / 10, 0)
-                        save_step = time_save / (10 * self.save_ind)
+                        time_coarsen = self.time_stop * self.save_ind / 10
+                        coarsen_step = time_coarsen / (self.coarsening_mesh)
 
                         traj_lists = []
 
                         for i in self.trajectories:
                             traj_lists.append(
-                                sample_trajectory(i, 0, time_save, save_step)
+                                sample_trajectory(i, 0, time_coarsen, coarsen_step)
                             )
                         traj_new = [
-                            trajectory_from_list(i[0], 0, time_save) for i in traj_lists
+                            trajectory_from_list(i[0], 0, time_coarsen) for i in traj_lists
                         ]
                         self.trajectories = traj_new
-                        self.save_ind = self.save_ind + 1
+                        
+                        trigger = True
+                
+                if trigger:
+                    trigger = False
+                    self.save_ind = self.save_ind + 1       
 
             # save run
             start_time = 0
             end_time = self.time_stop
-            step = float((end_time - start_time) / 1000)
+            step = float((end_time - start_time) / self.coarsening_mesh)
             #check is self.checkpoint exists
             if self.checkpoint and not os.path.exists(self.checkpoint_dir):
                 os.mkdir(self.checkpoint_dir)
 
             self.save_as_matrix(
-                file="{}{}_trajectories_{}_ckpt".format(
+                file="{}{}_trajectories_{}_final_ckpt".format(
                     self.checkpoint_dir, self.final_save_prefix, self.save_ind
                 ),
                 start_time=start_time,
@@ -172,20 +179,22 @@ class kmc:
             )
 
             print(
-                    "Lowest time at step {}: {:.5e}\n".format(
+                    "Lowest time at final step {}: {:.5e}\n".format(
                         self.step_count, lowest_time
                     )
                 )
             self.lowest_time = lowest_time
-
             self.step_count = self.step_count + 1
+            
             self.step()
-            last_time_arr = np.array([i.last_time() for i in self.trajectories])
+            
+            #last_time_arr = np.array([i.last_time() for i in self.trajectories])
 
 
         else:
             for _ in tqdm(range(n_steps)):
                 self.step()
+
 
     def get_state_dict_at_time(self, t=0):
         """
@@ -195,6 +204,15 @@ class kmc:
         Returns:
             ret_dict: dictionary of states and their counts
         """
+        if t > self.time_stop:
+            raise ValueError("time t is greater than time_stop")
+        
+        if t < 0:
+            raise ValueError("time t is less than 0")
+        
+        if t > self.lowest_time:
+            print("WARNING: time t is greater than lowest time in trajectories")
+
         ret_dict = {str(i):0 for i in range(self.n_states)}
 
         for i in self.trajectories:
@@ -203,6 +221,7 @@ class kmc:
 
         return ret_dict
     
+
     def get_state_dict_at_time_as_pandas(self, t=0):
         """
         Returns a pandas dataframe of states and their counts at time t
@@ -220,6 +239,7 @@ class kmc:
         ret_df.columns = ['count']
         
         return ret_df
+
 
     def save_as_matrix(self, file, start_time=0, end_time=100, step=1, append=False):
         """
@@ -255,6 +275,7 @@ class kmc:
         else:
             np.save(file, mat_save)
 
+
     def save_as_dict(self, file, start_time=0, end_time=100, step=1):
         """
         Saves states to json file
@@ -268,9 +289,10 @@ class kmc:
         """
         master_dict = {}
         with open(file, "w") as f:
-            for t in range(start_time, end_time, step):
+            for t in np.arange(start_time, end_time, step):
                 master_dict[t] = self.get_state_dict_at_time(t)
             json.dump(master_dict, f)
+
 
     def plot_top_n_states(
             self, 
@@ -283,6 +305,7 @@ class kmc:
             save=False,
             save_name="./output_top.png", ):
         """
+
         bin and count what states are in what bins
         Takes:
             list of trajectories objects
@@ -293,7 +316,7 @@ class kmc:
             max_time = self.lowest_time
         if resolution is None:
             resolution = self.lowest_time / 100
-
+        plt.rcParams["figure.figsize"] = (20, 10)
         count_dict = compute_state_counts(self.trajectories, resolution, max_time, self.n_states)
         keys_top_n = sorted(count_dict, key=count_dict.get, reverse=True)[:n_show]
         x_axis = np.arange(0, max_time, resolution)
@@ -303,6 +326,7 @@ class kmc:
             # get state dict as pandas 
             state_df = self.get_state_dict_at_time_as_pandas(t=i)
             # get counts for top n states
+            sum_count = state_df['count'].sum()
             df_ind = [int(i) for i in state_df.index.to_list()]
             list_get = [i for i in keys_top_n if i in df_ind]
             
@@ -312,21 +336,29 @@ class kmc:
                 counts_per_state[ind_update, ind] = state_df.iloc[list_get[ind_update]]['count']
         
         for i in range(n_show):
-            plt.plot(x_axis, counts_per_state[i, :] / self.n_states, label=keys_top_n[i])
+            plt.plot(x_axis, counts_per_state[i, :]/sum_count, label=keys_top_n[i])
 
-        if title:
-            plt.title(title)
-        if xlabel:
-            plt.xlabel(xlabel)
-        if ylabel:
-            plt.ylabel(ylabel)
-        if save:
-            plt.savefig(save_name)
+        if title is not None:
+            plt.title(title, fontsize=16)
+        if xlabel is not None:
+            plt.xlabel(xlabel, fontsize=14)
+        if ylabel is not None:
+            plt.ylabel(ylabel, fontsize=14)
+        # set image size
+        
+        
         # adjust x axis to min, max time
         plt.xlim(0, max_time)
-        plt.ylim(counts_per_state.min()/self.n_states - 10 , counts_per_state.max()/self.n_states + 10)
+        plt.ylim(
+            0.9 * counts_per_state.min()/sum_count , 
+            1.1 * counts_per_state.max()/sum_count )
+        
         plt.legend()
+
+        if save:
+            plt.savefig(save_name) 
         plt.show()  
+
 
     def plot_top_n_states_stacked(
             self, 
@@ -334,7 +366,10 @@ class kmc:
             resolution=None, 
             max_time=None,
             title=None,
+            xlabel=None, 
+            ylabel=None,
             save=False,
+            show=True,
             save_name="./output_top.png", ):
         """
         bin and count what states are in what bins
@@ -373,7 +408,6 @@ class kmc:
             
             # get rows list_get rows from state_df
             for ind_update in range(len(list_get)):
-                #print(state_df.iloc[list_get[ind_overwrite]]['count'])
                 counts_per_state[ind_update, ind] = state_df.iloc[list_get[ind_update]]['count']/sum_count
         
 
@@ -392,10 +426,21 @@ class kmc:
         fig.update_yaxes(range=[0, 1])
         # show legend 
         fig.update_layout(showlegend=True)
+        
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+
         # save plotly express figure 
+        if show:
+            fig.show()
+
         if save:
             fig.write_image(save_name)
-        fig.show()
+        
 
     def plot_select_states_stacked(
             self, 
@@ -403,7 +448,10 @@ class kmc:
             resolution=None, 
             max_time=None,
             title=None,
+            xlabel=None, 
+            ylabel=None,
             save=False,
+            show=True,
             save_name="./output_top.png", ):
         """
         bin and count what states are in what bins
@@ -451,10 +499,23 @@ class kmc:
         fig.update_yaxes(range=[0, 1])
         # show legend 
         fig.update_layout(showlegend=True)
+
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+            
+
         # save plotly express figure 
+        if show:
+            fig.show()
+
         if save:
             fig.write_image(save_name)
-        fig.show()
+        
+        
 
 def load_kmc_from_matrix(file, energies_mat, draw_crit, time_stop):
     """
