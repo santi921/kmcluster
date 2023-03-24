@@ -114,8 +114,7 @@ class kmc:
                 self.step()
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
 
-                if lowest_time > self.time_stop * self.save_ind / 10:
-                    
+                if lowest_time > self.time_stop * self.save_ind / 10:  
                     if self.checkpoint:
                         print("hit checkpoint {}/10".format(self.save_ind))
                         print("saving checkpoint at step {}".format(self.step_count))
@@ -134,7 +133,7 @@ class kmc:
                         trigger = True
 
 
-                    if self.memory_friendly and self.save_ind > 5:
+                    if self.memory_friendly:
                         print(
                             "coarsening trajectories at step {}\n".format(
                                 self.step_count
@@ -210,8 +209,8 @@ class kmc:
         if t < 0:
             raise ValueError("time t is less than 0")
         
-        if t > self.lowest_time:
-            print("WARNING: time t is greater than lowest time in trajectories")
+        #if t > self.lowest_time:
+        #    print("WARNING: time t is greater than lowest time in trajectories")
 
         ret_dict = {str(i):0 for i in range(self.n_states)}
 
