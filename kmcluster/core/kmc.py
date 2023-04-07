@@ -1,10 +1,11 @@
-import json, os
+import json, os, time, numba
 import pandas as pd 
 import numpy as np
 from tqdm import tqdm
 from glob import glob
 import matplotlib.pyplot as plt 
 import plotly.express as px
+from numpy.random import uniform
 
 from kmcluster.core.trajectory import (
     trajectory, 
@@ -28,7 +29,7 @@ class kmc:
         time_stop=-1,
         trajectories=None,
         save_freq=1000,
-        coarsening_mesh=100
+        coarsening_mesh=10000
     ):
         self.draw_crit = draw_crit
         self.memory_friendly = memory_friendly
@@ -61,37 +62,59 @@ class kmc:
             self.pop_size = len(trajectories)
             self.trajectories = trajectories
 
+    def get_sampling(self, n_traj):
+        rand_state_samples = uniform(0, 1, n_traj)
+        rand_time_samples = uniform(0.0000001, 1, n_traj)
+        neg_log_rand_time_samples = -np.log(rand_time_samples)
+        return  rand_state_samples, neg_log_rand_time_samples
 
     def step(self):
         sum_warning = 0
-        for traj in self.trajectories:
-            # get last state in traj
-            traj_last_ind = traj.last_state()
-
-            if self.time_stop > 0:
-                traj_last_time = traj.last_time()
-                # print(traj_last_time)
-                if traj_last_time > self.time_stop:
-                    continue
-                else:
-                    # print("last traj_ind: " + str(traj_last_ind))
-                    energies_from_i = self.energies[traj_last_ind]
-                    warning = traj.step(
-                        energies_from_i, self.draw_crit, time_stop=self.time_stop
-                    )
-                    sum_warning += warning
+        small_transitions = []
+        
+        rand_state_samples, neg_log_rand_time_samples = self.get_sampling(len(self.trajectories))
+        #traj_last_time = np.array([i.last_time() for i in self.trajectories])
+        
+        for ind, traj in enumerate(self.trajectories):
+            
+            traj_last_time = traj.last_time() #
+            
+            if traj_last_time > self.time_stop:
+                continue
+            
             else:
-                energies_from_i = self.energies[traj_last_ind]
-                warning = traj.step(
-                    energies_from_i, self.draw_crit, time_stop=self.time_stop
+                traj_last_ind = traj.last_state() #
+                
+                warning, time_to_transit = traj.step(
+                    traj_last_ind, 
+                    self.draw_crit, 
+                    time_stop=self.time_stop,
+                    state_sample=rand_state_samples[ind],
+                    neg_log_time_sample=neg_log_rand_time_samples[ind]
                 )
-                sum_warning += warning
 
-        if sum_warning > 1:
-            print("Warning: trajectories in this step have steps sizes < 1e-15s\n")
-
-
+                if warning == 1:
+                    sum_warning += warning
+                    small_transitions += time_to_transit,
+            
+            """else:
+                warning, time_to_transit = traj.step(
+                    traj_last_ind, 
+                    self.draw_crit, 
+                    time_stop=self.time_stop,
+                    state_sample=rand_state_samples[ind],
+                    neg_log_time_sample=neg_log_rand_time_samples[ind]
+                )
+                if warning == 1:
+                    sum_warning += warning
+                    small_transitions += time_to_transit,"""
+            
+        if sum_warning > len(self.trajectories) / 100:
+            print("Warning: trajectories in this step have steps sizes < 1e-15s")
+            
+    
     def run(self, n_steps=10):
+        time_list = []
         if n_steps == -1:
             
             trigger = False
@@ -101,17 +124,26 @@ class kmc:
 
             while not all([i > self.time_stop for i in last_time_arr]):
                 lowest_time = np.min(last_time_arr)
-
+                mean_time = np.mean(last_time_arr)
                 if self.step_count % 100 == 0:
                     print(
-                        "Lowest time at step {}: {:.5e}\n".format(
+                        "Lowest time at step {}: {:.5e}".format(
                             self.step_count, lowest_time
                         )
                     )
+                    print("mean time at step {}: {:.5e}\n".format(self.step_count, mean_time))
+
                     self.lowest_time = lowest_time
 
                 self.step_count = self.step_count + 1
+                timer_start = time.time()
                 self.step()
+                timer_end = time.time()
+
+                time_list.append(timer_end - timer_start)
+                if self.step_count % 500 == 0 : 
+                    print("time to step: {}".format(np.mean(time_list)))
+
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
 
                 if lowest_time > self.time_stop * self.save_ind / 10:  
@@ -159,6 +191,8 @@ class kmc:
                     trigger = False
                     self.save_ind = self.save_ind + 1       
 
+            print("done with kmc run to stop time {}".format(self.time_stop))
+            
             # save run
             start_time = 0
             end_time = self.time_stop
@@ -166,7 +200,7 @@ class kmc:
             #check is self.checkpoint exists
             if self.checkpoint and not os.path.exists(self.checkpoint_dir):
                 os.mkdir(self.checkpoint_dir)
-
+            
             self.save_as_matrix(
                 file="{}{}_trajectories_{}_final_ckpt".format(
                     self.checkpoint_dir, self.final_save_prefix, self.save_ind
@@ -182,14 +216,13 @@ class kmc:
                         self.step_count, lowest_time
                     )
                 )
+            print("mean time at final step: {:.5e}\n".format(mean_time))
             self.lowest_time = lowest_time
             self.step_count = self.step_count + 1
-            
             self.step()
             
-            #last_time_arr = np.array([i.last_time() for i in self.trajectories])
 
-
+            
         else:
             for _ in tqdm(range(n_steps)):
                 self.step()
@@ -213,13 +246,14 @@ class kmc:
         #    print("WARNING: time t is greater than lowest time in trajectories")
 
         ret_dict = {str(i):0 for i in range(self.n_states)}
+        list_of_states = [0 for i in range(self.n_states)]
+        #for i in self.trajectories:
+        #    ret_dict[str(i.state_at_time(t))] += 1
 
-        for i in self.trajectories:
-            state_temp = str(i.state_at_time(t))
-            ret_dict[state_temp] += 1
-
+        [ret_dict.update({str(i.state_at_time(t)): ret_dict[str(i.state_at_time(t))] + 1}) for i in self.trajectories]
         return ret_dict
     
+
 
     def get_state_dict_at_time_as_pandas(self, t=0):
         """
@@ -231,6 +265,7 @@ class kmc:
         """
         ret_dict = self.get_state_dict_at_time(t=t)
         # fill in missing states with 0 
+        
         for i in range(self.n_states):
             if str(i) not in ret_dict.keys():
                 ret_dict[str(i)] = 0
@@ -255,13 +290,9 @@ class kmc:
         mat_save = np.zeros(
             (self.pop_size, len(sampling_array))
         )
-        #print(mat_save.shape)
-        #print("number of trajectories: {}".format(len(self.trajectories)))
-        #print("population size: {}".format(self.pop_size))
 
-        for ind_t, t in enumerate(sampling_array):
-            for ind, i in enumerate(self.trajectories):
-                mat_save[ind][ind_t] = i.state_at_time(t)
+        for ind, i in enumerate(self.trajectories):
+            mat_save[ind] = i.states_at_times(sampling_array)
         # step as scientific notation with 5 decimal places
         step = "{:.5e}".format(step)
         end_time = "{:.5e}".format(end_time)
@@ -287,9 +318,24 @@ class kmc:
             None
         """
         master_dict = {}
+        sampling_array = np.arange(start_time, end_time, step)
+        
+        mat_save = np.zeros(
+            (self.pop_size, len(sampling_array))
+        )
+        
+        for ind, i in enumerate(self.trajectories):
+            mat_save[ind] = i.states_at_times(sampling_array)
+        
+        # for each state get the count at each time
+        for time in range(len(sampling_array)):
+            state_dict = {}
+            for state in range(self.n_states):
+                state_dict[str(state)] = int(np.sum(mat_save[:, time] == state))
+            master_dict[str(sampling_array[time])] = state_dict    
+
+
         with open(file, "w") as f:
-            for t in np.arange(start_time, end_time, step):
-                master_dict[t] = self.get_state_dict_at_time(t)
             json.dump(master_dict, f)
 
 
@@ -546,7 +592,7 @@ def load_kmc_from_matrix(file, energies_mat, draw_crit, time_stop):
         draw_crit=draw_crit,
         initialization=None,
         energies=energies_mat,
-        memory_friendly=True,
+        memory_friendly=False,
         checkpoint=True,
         time_stop=time_stop,
         trajectories=trajectories_loaded,

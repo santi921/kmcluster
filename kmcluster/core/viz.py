@@ -114,9 +114,11 @@ def compute_state_counts(trajectories, resolution, max_time, total_states):
     """
 
     states = []
-    for i in np.arange(0, max_time, resolution):
-        for traj in trajectories:
-            states.append(traj.state_at_time(i))
+    for traj in trajectories:
+        [states.append(i) for i in traj.states_at_times(np.arange(0, max_time, resolution))]
+    #for i in np.arange(0, max_time, resolution):
+    #    for traj in trajectories:
+    #        states.append(traj.state_at_time(i))
 
     states_active = list(set(states))
     states_np = np.array(states)
