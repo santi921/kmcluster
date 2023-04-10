@@ -63,7 +63,7 @@ class kmc:
                 os.makedirs(self.checkpoint_dir)
         
         # load optionality
-        if self.load_from_state_dict:
+        if self.state_dict_file is not None:
             self.load_from_state_dict()
     
         else:             
@@ -329,7 +329,7 @@ class kmc:
         Initializes kmc object from state dictionary
         """
         trajectories = []
-        
+        print("-"*20 + "Reload Module" + "-"*20)
         with open(self.state_dict_file, 'rb') as input:
             ret_dict = pkl.load(input)
         ########################################################
@@ -364,29 +364,9 @@ class kmc:
         print("sample frequency is {}s".format(self.sample_frequency))
         lowest_time = np.min(ret_dict["traj_times"])
         print("slowest trajectory is {}".format(lowest_time))
+        print("-"*20 + "Reload Module" + "-"*20)    
 
-
-    def plot_top_n_states(
-            self, 
-            n_show=5, 
-            resolution=None, 
-            max_time=None,
-            xlabel=None, 
-            ylabel=None,
-            title=None,
-            save=False,
-            save_name="./output_top.png", ):
-        """
-
-        bin and count what states are in what bins
-        Takes:
-            list of trajectories objects
-            resolution(float): bin size
-            time_stop(float): time upper bound on counting
-        """
-        raise NotImplementedError
-
-
+        
     def plot_top_n_states_stacked(
             self, 
             n_show=5, 
@@ -405,7 +385,61 @@ class kmc:
             resolution(float): bin size
             time_stop(float): time upper bound on counting
         """
-        raise NotImplementedError
+        if n_show == -1:
+            n_show = self.n_states
+
+        if max_time is None:
+            max_time = self.lowest_time
+        
+        if resolution is None:
+            resolution = self.lowest_time / 100
+
+        count_dict = self.results_mat.T
+        # convert to pandas
+        #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
+        count_df = pd.DataFrame(count_dict)
+        #add column names as times 
+        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        #add row names as states
+        count_df.columns = np.arange(0, self.n_states)
+        print(count_df.head())
+        print(count_df.keys())
+    
+        # sum all counts for each state
+        sum_count = count_df.sum(axis=0)
+        # get top n states
+        keys_top_n = sum_count.nlargest(n_show).index.to_list()
+
+        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        counts_per_state = np.zeros((n_show, len(x_axis)))
+        self.pop_size
+
+        df_show = count_df[keys_top_n]
+        # divide by total population size
+        df_show = df_show / self.pop_size    
+        print(df_show.head())
+        fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, 1])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+
+        # save plotly express figure 
+        if show:
+            fig.show()
+
+        if save:
+            fig.write_image(save_name)        
 
 
     def plot_select_states_stacked(

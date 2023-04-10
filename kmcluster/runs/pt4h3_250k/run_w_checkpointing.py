@@ -180,7 +180,7 @@ def get_merge_data_new():
 # main function
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
-    T_kelvin = 200
+    T_kelvin = 100
     Pt_H2_all, Pt4H2_relE = get_merge_data()
     
     energies_mat = sparse_to_mat(Pt_H2_all)
@@ -204,7 +204,6 @@ if __name__ == "__main__":
         initialization=init_random,
         checkpoint=False,
         checkpoint_dir="./checkpoints/",
-        final_save_prefix="saved_data",
         batch_size=1000, 
     )
 
@@ -216,8 +215,8 @@ if __name__ == "__main__":
     
     n_show = 5
     print("mpl plot - top states")
-    """
-    kmc_boltz.plot_top_n_states(
+    
+    kmc_boltz.plot_top_n_states_stacked(
         n_show=n_show,
         #total_states=len(Pt4H2_relE),
         resolution=0.000001,
@@ -228,7 +227,7 @@ if __name__ == "__main__":
         save=True,
 	    save_name="Pt4H2_g_150K_top{}.png".format(n_show)
     )
-    """
+    
     
     print("plotly plot - top states")
     

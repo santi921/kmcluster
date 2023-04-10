@@ -1,5 +1,5 @@
 import numpy as np 
-from bisect import bisect_right, bisect_left
+from bisect import bisect_right
 
 class trajectory:
     def __init__(self, init_state, init_time=None, init_history=None):
@@ -339,22 +339,6 @@ class trajectory_minimum:
     #    return self.current_state
     def last_time(self):
         return self.current_time
-
-
-def sample_trajectory(trajectory, start, end, step):
-    """
-    Samples a trajectory at a given time
-    Takes:
-        trajectory: trajectory to sample
-        start: start time
-        end: end time
-        step: step size
-    Returns:
-        ret_dict: dictionary of states and their counts
-    """
-    states = trajectory.states_at_times(np.arange(start, end, step))
-    times = np.arange(start, end, step)
-    return [states, times]
 
 
 def trajectory_from_list(list, start_time, end_time):

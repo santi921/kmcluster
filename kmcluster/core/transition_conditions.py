@@ -2,9 +2,10 @@ import numpy as np
 import random
 from bisect import bisect_left
 import numba, brisk
-from numba import njit, jit
+from numba import jit
 #k_b_ev = 8.614 * 10**-5
 #k_b_j = 1.38064852 * 10**-23
+
 
 
 class rfkmc:
@@ -30,6 +31,7 @@ class rfkmc:
     def get_rates_total(self, state_index):
         return self.rate_mat[state_index, :]
     
+    
     def call(self, state_index, rand_state, neg_log_time_sample):
         
         sum_rates = self.sum_rates[state_index]
@@ -52,6 +54,7 @@ class rfkmc:
         time_to_transitions = np.zeros(n)
         return return_states, time_to_transitions
     
+
     def call_batched(self, state, rand_states, neg_log_time_samples):
         '''
             given a starting state, a list of random states, and a list of negative log time samples
@@ -62,23 +65,24 @@ class rfkmc:
         last_state = int(state)
         
         for i in range(len(rand_states)): 
-            sum_rates, rates_cum = self.get_sum_cum_rates(last_state)
-
+            #sum_rates, rates_cum = self.get_sum_cum_rates(last_state)
+            sum_rates, rates_cum = self.sum_rates[last_state], self.cum_rates[last_state]
             if sum_rates == 0:
                 print("sheesh")
                 return_states[i] = last_state
                 time_to_transitions[i] = multiply(10e6, i)
                 continue
 
-            rand_state = multiply(rand_states[i], sum_rates)
-            last_state = int(brisk.bisect_left(rates_cum, rand_state))        
+            rand_state = multiply(rand_states[i], sum_rates) # hot
+            last_state = int(brisk.bisect_left(rates_cum, rand_state))       
             
             return_states[i] = last_state
 
             if i == 0: 
-                time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates)
+                #time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates)
+                time_to_transitions[i] = div_w_index(neg_log_time_samples, sum_rates, i)
             else:
-                time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates) + time_to_transitions[i - 1]
+                time_to_transitions[i] = div_and_sum(neg_log_time_samples[i], sum_rates, time_to_transitions[i - 1])  # expensive
 
         return return_states, time_to_transitions
         #return compile_base(state, rand_states, neg_log_time_samples, self.sum_rates, self.cum_rates)
@@ -90,6 +94,19 @@ def multiply(a, b):
 @jit(nopython=True)
 def div(a, b): 
     return a / b
+
+@jit(nopython=True)
+def div_and_sum(a, b, c): 
+    return a / b + c
+
+@jit(nopython=True)
+def div_w_index(a, b, i):
+    return a[i] / b
+
+@jit(nopython=True)
+def div_w_index_and_sum(a, b, i, c):
+    return a[i] / b + c
+
 # deprecated
 class rkmc:
     def __init__(self, r_0, k_b_t=1):
