@@ -9,7 +9,10 @@ from multiprocessing.pool import Pool
 from kmcluster.core.trajectory import (
     trajectory_minimum,
 )
+from tabulate import tabulate
 import itertools
+from bisect import bisect_right
+
 from kmcluster.core.trajectory import trajectory_minimum
 from kmcluster.core.intialize import population_ind_to_minimum_trajectories
 #from kmcluster.core.viz import compute_state_counts
@@ -45,14 +48,14 @@ class kmc:
         self.load_from_state_dict = load_from_state_mat
         self.state_mat_file = state_mat_file
         
-
+        
         if sample_frequency == -1:
-            self.sample_frequency = time_stop//1000
-
-        self.results_mat = np.zeros((self.n_states, self.pop_size))
-        self.probe_mats = [np.zeros_like(self.results_mat) for i in range(int(self.time_stop/self.sample_freq))]
-        self.probe_status = [False for i in range(int(self.time_stop/self.sample_freq))]
-
+            self.sample_frequency = time_stop/100
+        
+        self.results_mat = np.zeros((self.n_states, 1+int(self.time_stop/self.sample_frequency)))
+        print("results_mat shape: ", self.results_mat.shape)
+        self.probe_status = [False for i in range(int(self.time_stop/self.sample_frequency))]
+        self.probe_times = np.array([i*self.sample_frequency for i in range(int(self.time_stop/self.sample_frequency))])
         assert (
             initialization is not None and load_from_state_mat is not None
         ), "init and trajectories cannot both be not None"
@@ -65,13 +68,24 @@ class kmc:
         # load optionality
         if self.load_from_state_dict:
             self.load_from_state_dict(self.state_mat_file)
-        
+    
         else:             
             self.pop_init = initialization.get_init_populations()
             self.trajectories = population_ind_to_minimum_trajectories(self.pop_init)
             self.pop_size = initialization.size
         
-        
+        #### from rfkmc #### from rfkmc #### from rfkmc 
+        """rate_mat = np.zeros((len(energies), len(energies)))
+        for i in range(len(self.energies)):
+            for j in range(len(self.energies[0])):
+                if self.energy_mat[i, j] != 0:
+                    rate_mat[i, j] = (self.k_b_t / (4.1357 * 10**-15)) * np.exp(
+                        -(self.energies[i, j] / (self.k_b_t))
+                    )
+        self.rate_mat = np.array(rate_mat)
+        self.sum_rates = np.sum(self.rate_mat, axis=1)"""
+        #### from rfkmc #### from rfkmc #### from rfkmc
+
         print("done initializing....")
 
 
@@ -161,17 +175,18 @@ class kmc:
             if traj_last_time > self.time_stop:
                 continue
             else:
-                state = traj.batched_step(
+                probe_states, probe_ind = traj.batched_step(
                     self.draw_crit, 
                     state_samples=self.rand_state_samples[ind],
                     neg_log_time_samples=self.neg_log_rand_time_samples[ind],
-                    sample_frequency=self.sample_freq
+                    sample_frequency=self.sample_frequency,
+                    time_stop=self.time_stop
                 )
-
-                if state > 0: 
-                    self.results_mat[int(state), ind] += 1
+    
+                for ind in range(len(probe_states)): 
+                    if probe_ind[ind] > -1: 
+                        self.results_mat[int(probe_states[ind]),int(probe_ind[ind])] += 1
                 
-
 
     def run(self, n_steps=10):
         time_list = []
@@ -180,8 +195,8 @@ class kmc:
             self.step_count = 0
             ind_tracker = 1
             last_time_arr = np.array([i.last_time() for i in self.trajectories])
-            print("starting run")
             
+            print("starting run")
             while np.min(last_time_arr) < self.time_stop:
                 #print("batch")
                 timer_start = time.time()
@@ -189,7 +204,7 @@ class kmc:
                 timer_end = time.time()
                 time_list.append(timer_end - timer_start)
                 
-                if self.step_count > 10000 * ind_tracker:
+                if self.step_count > 5000 * ind_tracker:
                     lowest_time = np.min(last_time_arr)
                     mean_time = np.mean(last_time_arr)
                     ind_tracker += 1
@@ -199,30 +214,36 @@ class kmc:
                     print("mean time at step: {:.5e}".format(mean_time))
                     print("time to step: {}\n".format(np.mean(time_list)))
                     print("-"*40)
-                print("step count: {}".format(self.step_count))
+                    # show first_column of results_mat
+                    rolling_ind = bisect_right(self.probe_times, lowest_time)
+                    header = ["{:.1e}".format(i) for i in self.probe_times[rolling_ind:rolling_ind+15]]
+                    table = tabulate(self.results_mat[:,rolling_ind:rolling_ind+15], tablefmt="fancy_grid", headers=header)
+                    #table = tabulate(self.results_mat[], tablefmt="fancy_grid")
+                    print(table)
+                    # print sum of first 26 columns, 
+                    self.save_as_dict("./test_dict.json")
+                    print("rolling state sum: \n{}".format(np.sum(self.results_mat[:,rolling_ind:rolling_ind+26], axis=0)))
+
+                #print("step count: {}".format(self.step_count))
                 self.step_count = self.step_count + self.batch_size
                 
                
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
-                #traj_probe = self.trajectories[0]
-                #print("number of steps in probe traj ", len(traj_probe.states)) 
+                lowest_time = np.min(last_time_arr)
+                ind_lowest = bisect_right(self.probe_times, lowest_time)
                 
+                try:
+                    self.probe_status[ind_lowest] = True
+                except: 
+                    print("Calc Done!")
+
                 if self.checkpoint:
                     if lowest_time > self.time_stop * self.save_ind / 10:  
                         print("hit checkpoint {}/10".format(self.save_ind))
                         print("saving checkpoint at step {}".format(self.step_count))
                         time_save = self.time_stop * self.save_ind / 10
                         save_step = time_save / self.coarsening_mesh
-
-                        self.save_as_matrix(
-                            file="{}trajectories_{}_ckpt".format(
-                                self.checkpoint_dir, self.save_ind
-                            ),
-                            start_time=0,
-                            end_time=time_save,
-                            step=save_step,
-                            append=True,
-                        )
+                        self.save_as_dict("./test_dict.json")
                         trigger = True
                 
                 if trigger:
@@ -232,7 +253,7 @@ class kmc:
             print("done with kmc run to stop time {}".format(self.time_stop))
             print("this took {} steps".format(self.step_count))
             # save run
-            
+            self.probe_status = [True for i in self.probe_status]
             #check is self.checkpoint exists
             if self.checkpoint and not os.path.exists(self.checkpoint_dir):
                 os.mkdir(self.checkpoint_dir)
@@ -265,32 +286,6 @@ class kmc:
         else:
             for _ in tqdm(range(n_steps)):
                 self.step()
-
-
-    def get_state_dict_at_time(self, t=0):
-        """
-        Returns a dictionary of states and their counts at time t
-        Takes:
-            t: time to get state counts at
-        Returns:
-            ret_dict: dictionary of states and their counts
-        """
-        if t > self.time_stop:
-            raise ValueError("time t is greater than time_stop")
-        
-        if t < 0:
-            raise ValueError("time t is less than 0")
-        
-        #if t > self.lowest_time:
-        #    print("WARNING: time t is greater than lowest time in trajectories")
-
-        ret_dict = {str(i):0 for i in range(self.n_states)}
-        list_of_states = [0 for i in range(self.n_states)]
-        #for i in self.trajectories:
-        #    ret_dict[str(i.state_at_time(t))] += 1
-
-        [ret_dict.update({str(i.state_at_time(t)): ret_dict[str(i.state_at_time(t))] + 1}) for i in self.trajectories]
-        return ret_dict
     
 
     def get_state_dict_at_time_as_pandas(self, t=0):
@@ -312,14 +307,13 @@ class kmc:
         Returns:
             None
         """
-        ret_dict = {}
+        ret_dict = {"running_state": {}}
         
         
         
         ret_dict['time_stop'] = self.time_stop
-        ret_dict['population_size'] = self.population_size
+        ret_dict['population_size'] = self.pop_size
         ret_dict["sample_frequency"] = self.sample_frequency
-        ret_dict["probe_states"] = self.probe_mats  
         ret_dict["probe_status"] = self.probe_status
 
         # save all current run info
@@ -327,9 +321,10 @@ class kmc:
         ret_dict["running_state"]["traj_times"] = [i.get_current_state() for i in self.trajectories]
         ret_dict["running_state"]["traj_states"] = [i.get_current_time() for i in self.trajectories]
 
-        with open(file, 'w') as fp:
-            json.dump(ret_dict, fp)
-        
+        #with open(file, 'w') as fp:
+        #    json.dump(ret_dict, fp)
+        #np.save(file, ret_dict)
+        pd.from_dict(ret_dict).to_json(file)
 
     def load_from_state_dict(self):
         """
@@ -354,13 +349,18 @@ class kmc:
                 trajectory_minimum(init_state=traj_states[ind], init_time=i)
             )
         self.results_mat = np.array(ret_dict["running_state"]["results_mat"])
+        self.trajectories = trajectories
+        self.pop_size = len(trajectories)
         ########################################################
 
         ########################################################
         ########## initalizes probe states ##########
-        self.probe_mats = ret_dict["probe_states"]
         self.probe_status = ret_dict["probe_status"] 
+        assert ret_dict["sample_frequency"] == self.sample_frequency, "my brother in christ the sampling freq must be the same as the save dict"
+        assert ret_dict["time_stop"] == self.time_stop, "my brother in christ the time stop must be the same as the save dict"
         self.sample_frequency = ret_dict["sample_frequency"]
+        self.time_stop = ret_dict["time_stop"]
+
         ########################################################
         print("done reloading from file {}".format(self.save_dict_file))
         print("loaded {} trajectories".format(len(trajectories)))
@@ -431,8 +431,7 @@ class kmc:
             time_stop(float): time upper bound on counting
         """
         raise NotImplementedError
-
-            
+        
 
 def load_kmc_from_matrix(
         state_file, 

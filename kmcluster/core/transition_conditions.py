@@ -22,19 +22,11 @@ class rfkmc:
         self.rate_mat = np.array(rate_mat)
         self.sum_rates = np.sum(self.rate_mat, axis=1)
         
-        print(self.rate_mat.shape)
-        print(self.energy_mat.shape)
-        print(self.sum_rates.shape)
         
         self.cum_rates = []
-        #self.valid_states = []
         for i in range(len(self.rate_mat)):
-            #valid_states = np.where(self.rate_mat[i, :] != 0)[0]
-            #self.valid_states.append(valid_states)
             self.cum_rates.append(rates_to_cum_rates(self.rate_mat[i]))
-        print(len(self.cum_rates))
-
-        #self.cum_rates = np.array(self.cum_rates
+        
     def get_rates_total(self, state_index):
         return self.rate_mat[state_index, :]
     
@@ -48,7 +40,6 @@ class rfkmc:
         
         return_state = bisect_left(rates_cum, rand_state)
         time_to_transition = neg_log_time_sample / sum_rates
-        
         
         return return_state, time_to_transition
 

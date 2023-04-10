@@ -1,5 +1,5 @@
 import numpy as np 
-from bisect import bisect_right
+from bisect import bisect_right, bisect_left
 
 class trajectory:
     def __init__(self, init_state, init_time=None, init_history=None):
@@ -300,7 +300,7 @@ class trajectory_minimum:
     def get_current_time(self):
         return self.current_time
 
-    def batched_step(self, draw_crit, state_samples, neg_log_time_samples, sample_frequency, ret_all=False):
+    def batched_step(self, draw_crit, state_samples, neg_log_time_samples, sample_frequency, time_stop, ret_all=False):
         last_state = self.current_state 
         last_time = self.current_time
 
@@ -308,30 +308,34 @@ class trajectory_minimum:
             last_state, 
             state_samples, 
             neg_log_time_samples)
-        
         times += last_time
-        time_check = sample_frequency * self.index_of_last_sample
-        
+        #print(times)
         self.current_state = new_states[-1]
         self.current_time = times[-1]
-        
-        
-        if times[-1] > time_check:
-            # find the index of the first time that is greater than the time check ising bisect
-            sample_trigger = bisect_right(times, time_check)
-            self.index_of_last_sample = self.index_of_last_sample + 1
+        probe_inds, probe_states = [], []
+        time_check = sample_frequency * self.index_of_last_sample
+
+
+        if times[-1] > time_check: # this means that at LEAST THE NEXT SAMPLING POINT HIT
+            while times[-1] > time_check and time_check < time_stop:
+                # find the index of the first time that is greater than the time check ising bisect
+                sample_trigger = bisect_right(times, time_check)
+                probe_inds.append(self.index_of_last_sample)
+                probe_states.append(int(new_states[sample_trigger]))
+                self.index_of_last_sample = self.index_of_last_sample + 1
+                time_check = sample_frequency * self.index_of_last_sample
             
             if ret_all:
-                return new_states[sample_trigger], self.current_state, self.current_time
-            
-            return new_states[sample_trigger]                
+                return probe_states, probe_inds, self.current_state, self.current_time
+            #print(new_states)
+            #print(probe_states, probe_inds)
+            return probe_states, probe_inds             
+        else: 
+            if ret_all:
+
+                return [-1], [-1], self.current_state, self.current_time
+            return [-1], [-1]
         
-        if ret_all:
-            return -1, self.current_state, self.current_time
-
-        return -1
-    
-
     #def last_state(self):
     #    return self.current_state
     def last_time(self):

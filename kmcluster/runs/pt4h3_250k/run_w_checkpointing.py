@@ -180,7 +180,7 @@ def get_merge_data_new():
 # main function
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
-    T_kelvin = 500
+    T_kelvin = 200
     Pt_H2_all, Pt4H2_relE = get_merge_data()
     
     energies_mat = sparse_to_mat(Pt_H2_all)
@@ -208,7 +208,7 @@ if __name__ == "__main__":
         batch_size=1000, 
     )
 
-    print("running kmc")
+    print("running kmc") 
     kmc_boltz.run(n_steps=-1)
     print("kmc done")
     #kmc_boltz.save_as_dict("Pt4H2_g_150K_0.0001s.json",start_time=0,end_time=0.0001,step=0.000001)
