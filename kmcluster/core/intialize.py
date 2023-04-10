@@ -1,5 +1,5 @@
 import numpy as np
-from kmcluster.core.trajectory import trajectory
+from kmcluster.core.trajectory import trajectory, trajectory_minimum
 from numpy import random
 
 
@@ -118,3 +118,12 @@ def population_ind_to_trajectories(population_list):
             for j in range(i):
                 as_indicies.append(ind)
     return [trajectory(i) for i in as_indicies]
+
+
+def population_ind_to_minimum_trajectories(population_list):
+    as_indicies = []
+    for ind, i in enumerate(population_list):
+        if i > 0:
+            for j in range(i):
+                as_indicies.append(ind)
+    return [trajectory_minimum(i, 0) for i in as_indicies]

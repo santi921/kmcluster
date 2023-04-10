@@ -7,6 +7,14 @@ import networkx as nx
 import matplotlib.animation as animation
 from matplotlib.widgets import Slider, Button
 
+# TODO visualize from dask dataframe, stacked plots
+
+def visualize_dask(
+        ddf,
+        start_time, 
+        end_time, 
+        step,
+    ): pass
 
 def set_node_facecolor(G, **kwargs):
     """

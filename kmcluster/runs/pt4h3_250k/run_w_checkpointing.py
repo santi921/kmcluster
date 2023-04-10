@@ -1,10 +1,7 @@
-import numpy as np
-from kmcluster.core.kmc import kmc
+from kmcluster.core.kmc_minimum import kmc 
 from kmcluster.core.transition_conditions import rfkmc
-from kmcluster.core.intialize import random_init, boltz, selected
+from kmcluster.core.intialize import random_init, boltz
 from kmcluster.core.data import sparse_to_mat
-
-
 
 def get_merge_data():
     """
@@ -13,73 +10,99 @@ def get_merge_data():
         Pt_H1_all: list of lists, each sublist is a barrier in the form [i,j,barrier]
     """
 
+    Pt_H1_links = [
+        [0, 1, 0.15],
+        [0, 2, 0.61],
+        [0, 3, 0.39],
+        [2, 4, 0.27],
+        [2, 6, 0.50],
+        [2, 8, 0.66],
+        [3, 8, 0.50],
+        [5, 7, 0.52],
+        [5, 9, 0.66],
+        [5, 6, 0.66],
+    ]
 
-    # relative energies
-    Pt4H2_relE = [0.0,
-        0.12968483999999947,
-        0.15544876999999957,
-        0.2135138399999974,
-        0.24601814000000033,
-        0.25703292000000033,
-        0.2939078699999982,
-        0.3176236199999991,
-        0.3213298899999977,
-        0.32533018999999896,
-        0.3709225499999995,
-        0.3738283999999972,
-        0.3905175899999982,
-        0.39488384999999937,
-        0.4040561700000005,
-        0.4339835000000001,
-        0.46826942999999943,
-        0.4787926299999974,
-        0.5032997299999984,
-        0.5751533699999989,
-        0.6028533899999999,
-        0.7178215399999992]
+    Pt4H1_rawE = [
+        -17.71720725,
+        -17.68531409,
+        -17.57336808,
+        -17.50640668,
+        -17.50097929,
+        -17.50887522,
+        -17.38155630,
+        -17.25580137,
+        -17.15164472,
+        -17.13649884,
+    ]
+    H1_E = [Pt4H1_rawE[x] - Pt4H1_rawE[0] for x in range(0, len(Pt4H1_rawE))]
 
-
-    # all the forward barriers
-    PtH2_links=[[0, 9, 0.76],
-     	[1, 9, 0.34],
-     	[5, 10, 0.21],
-     	[4, 11, 0.38],
-     	[6, 19, 0.33],
-     	[17, 19, 0.21],
-     	[1, 7, 0.39],
-     	[9, 15, 0.16],
-     	[9, 13, 0.12],
-     	[10, 13, 0.18],
-     	[14, 21, 0.57],
-     	[11, 17, 0.22],
-     	[7, 20, 0.48],
-     	[0, 4, 0.31],
-     	[0, 6, 0.63],
-     	[1, 2, 0.28],
-     	[3, 8, 0.39],
-     	[1, 18, 0.5],
-     	[16, 17, 0.41],
-     	[2, 12, 0.43],
-     	[7, 9, 0.25]
-	]
-
-    # calculating the reverse barriers
-    Pt4H2_rev = []
-    for i in range(0, len(PtH2_links)):
-        Pt4H2_rev.append(
+    Pt4H1_rev = []
+    for i in range(0, len(Pt_H1_links)):
+        Pt4H1_rev.append(
             [
-                PtH2_links[i][1],
-                PtH2_links[i][0],
+                Pt_H1_links[i][1],
+                Pt_H1_links[i][0],
                 round(
-                    (PtH2_links[i][2] + Pt4H2_relE[PtH2_links[i][0]])
-                    - Pt4H2_relE[PtH2_links[i][1]],
+                    (Pt_H1_links[i][2] + H1_E[Pt_H1_links[i][0]])
+                    - H1_E[Pt_H1_links[i][1]],
+                    2,
+                ),
+            ]
+        )
+
+    # raw energies
+    Pt4H1_rawE = [
+        -17.71720725,
+        -17.68531409,
+        -17.57336808,
+        -17.50640668,
+        -17.50097929,
+        -17.50887522,
+        -17.38155630,
+        -17.25580137,
+        -17.15164472,
+        -17.13649884,
+    ]
+    # relative energies
+    H1_E = [Pt4H1_rawE[x] - Pt4H1_rawE[0] for x in range(0, len(Pt4H1_rawE))]
+    # all the forward barriers
+    Pt_H1_links = [
+        [0, 1, 0.15],
+        [0, 2, 0.61],
+        [0, 3, 0.39],
+        [2, 4, 0.27],
+        [2, 6, 0.50],
+        [2, 8, 0.66],
+        [3, 8, 0.55],
+        [5, 7, 0.52],
+        [5, 9, 0.66],
+        [5, 6, 0.66],
+        [0, 6, 0.52],
+        [1, 2, 0.28],
+        [2, 5, 0.22],
+        [3, 5, 0.22],
+        [7, 8, 0.15],
+        [8, 9, 0.14],
+    ]
+    # calculating the reverse barriers
+    Pt4H1_rev = []
+    for i in range(0, len(Pt_H1_links)):
+        Pt4H1_rev.append(
+            [
+                Pt_H1_links[i][1],
+                Pt_H1_links[i][0],
+                round(
+                    (Pt_H1_links[i][2] + H1_E[Pt_H1_links[i][0]])
+                    - H1_E[Pt_H1_links[i][1]],
                     2,
                 ),
             ]
         )
     # all barriers
-    Pt_H2_all = PtH2_links + Pt4H2_rev
-    return Pt_H2_all, Pt4H2_relE
+    Pt_H1_all = Pt_H1_links + Pt4H1_rev
+    return Pt_H1_all, H1_E
+
 
 def get_merge_data_new(): 
     Pt4H3_relE=[0.0,
@@ -157,16 +180,21 @@ def get_merge_data_new():
 # main function
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
-    T_kelvin = 100
-    Pt_H2_all, Pt4H2_relE = get_merge_data_new()
+    T_kelvin = 500
+    Pt_H2_all, Pt4H2_relE = get_merge_data()
+    
     energies_mat = sparse_to_mat(Pt_H2_all)
-    temp_boltz = T_kelvin * 8.617 * 10 ** (-5)
-    k_b_ev = 8.614 * 10**-5
+    #print(energies_mat)
+    temp_boltz = T_kelvin * 8.617 * 10 **-5
+    #k_b_ev = 8.614 * 10**-5
+    
+    energies_nonzero = energies_mat[energies_mat != 0]
+    print("smallest barrier: ", min(energies_nonzero))
 
-    rfkmc_obj = rfkmc(k_b_t=temp_boltz)
+    rfkmc_obj = rfkmc(k_b_t=temp_boltz, energy_mat=energies_mat)
     init_boltz = boltz(energies=Pt4H2_relE, T=temp_boltz, size=10000)
     init_random = random_init(10000, energies_mat.shape[0])
-    
+    time_stop = 0.0001
 
     # initialize kmc object
     kmc_boltz = kmc(
@@ -174,21 +202,21 @@ if __name__ == "__main__":
         energies=energies_mat,
         draw_crit=rfkmc_obj,
         initialization=init_random,
-        memory_friendly=True,
         checkpoint=False,
         checkpoint_dir="./checkpoints/",
         final_save_prefix="saved_data",
-        coarsening_mesh=100 # this is the mesh for checkpointing/saving + memory friendly
+        batch_size=1000, 
     )
 
     print("running kmc")
     kmc_boltz.run(n_steps=-1)
     print("kmc done")
-    kmc_boltz.save_as_dict("Pt4H2_g_150K_0.0001s.json",start_time=0,end_time=0.0001,step=0.000001)
+    #kmc_boltz.save_as_dict("Pt4H2_g_150K_0.0001s.json",start_time=0,end_time=0.0001,step=0.000001)
     print("saving done")
     
-    n_show = 20
+    n_show = 5
     print("mpl plot - top states")
+    """
     kmc_boltz.plot_top_n_states(
         n_show=n_show,
         #total_states=len(Pt4H2_relE),
@@ -200,10 +228,11 @@ if __name__ == "__main__":
         save=True,
 	    save_name="Pt4H2_g_150K_top{}.png".format(n_show)
     )
-    
     """
+    
     print("plotly plot - top states")
     
+    """
     kmc_boltz.plot_top_n_states_stacked(
     	n_show = 5,
     	resolution=0.000001, 

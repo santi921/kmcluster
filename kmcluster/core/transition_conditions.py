@@ -1,10 +1,10 @@
 import numpy as np
-from numpy.random import uniform
 import random
-from copy import deepcopy
 from bisect import bisect_left
-k_b_ev = 8.614 * 10**-5
-k_b_j = 1.38064852 * 10**-23
+import numba, brisk
+from numba import njit, jit
+#k_b_ev = 8.614 * 10**-5
+#k_b_j = 1.38064852 * 10**-23
 
 
 class rfkmc:
@@ -12,7 +12,7 @@ class rfkmc:
         self.k_b_t = k_b_t
         self.energy_mat = energy_mat
         
-        rate_mat = np.zeros((len(energy_mat), len(energy_mat[0])))
+        rate_mat = np.zeros((len(energy_mat), len(energy_mat)))
         for i in range(len(self.energy_mat)):
             for j in range(len(self.energy_mat[0])):
                 if self.energy_mat[i, j] != 0:
@@ -21,20 +21,23 @@ class rfkmc:
                     )
         self.rate_mat = np.array(rate_mat)
         self.sum_rates = np.sum(self.rate_mat, axis=1)
+        
+        print(self.rate_mat.shape)
+        print(self.energy_mat.shape)
+        print(self.sum_rates.shape)
+        
         self.cum_rates = []
         #self.valid_states = []
         for i in range(len(self.rate_mat)):
-            valid_states = np.where(self.rate_mat[i, :] != 0)[0]
+            #valid_states = np.where(self.rate_mat[i, :] != 0)[0]
             #self.valid_states.append(valid_states)
-            self.cum_rates.append(rates_to_cum_rates(self.rate_mat[i, valid_states]))
-        
-        #self.cum_rates = np.array(self.cum_rates)
-    
-    
+            self.cum_rates.append(rates_to_cum_rates(self.rate_mat[i]))
+        print(len(self.cum_rates))
+
+        #self.cum_rates = np.array(self.cum_rates
     def get_rates_total(self, state_index):
         return self.rate_mat[state_index, :]
     
-
     def call(self, state_index, rand_state, neg_log_time_sample):
         
         sum_rates = self.sum_rates[state_index]
@@ -45,9 +48,58 @@ class rfkmc:
         
         return_state = bisect_left(rates_cum, rand_state)
         time_to_transition = neg_log_time_sample / sum_rates
+        
+        
         return return_state, time_to_transition
 
 
+    def get_sum_cum_rates(self, ind): 
+        return self.sum_rates[ind], self.cum_rates[ind]
+    
+    def inst_ret_vars(self, n): 
+        return_states = np.zeros(n)
+        time_to_transitions = np.zeros(n)
+        return return_states, time_to_transitions
+    
+    def call_batched(self, state, rand_states, neg_log_time_samples):
+        '''
+            given a starting state, a list of random states, and a list of negative log time samples
+            return a list of states and a list of times to transition
+        '''
+        return_states, time_to_transitions = self.inst_ret_vars(len(neg_log_time_samples))
+
+        last_state = int(state)
+        
+        for i in range(len(rand_states)): 
+            sum_rates, rates_cum = self.get_sum_cum_rates(last_state)
+
+            if sum_rates == 0:
+                print("sheesh")
+                return_states[i] = last_state
+                time_to_transitions[i] = multiply(10e6, i)
+                continue
+
+            rand_state = multiply(rand_states[i], sum_rates)
+            last_state = int(brisk.bisect_left(rates_cum, rand_state))        
+            
+            return_states[i] = last_state
+
+            if i == 0: 
+                time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates)
+            else:
+                time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates) + time_to_transitions[i - 1]
+
+        return return_states, time_to_transitions
+        #return compile_base(state, rand_states, neg_log_time_samples, self.sum_rates, self.cum_rates)
+
+@jit(nopython=True)
+def multiply(a, b): 
+    return a * b
+
+@jit(nopython=True)
+def div(a, b): 
+    return a / b
+# deprecated
 class rkmc:
     def __init__(self, r_0, k_b_t=1):
         self.rejection = r_0
@@ -90,8 +142,9 @@ class rkmc:
         return return_state, time_to_transition
 
 def rates_to_cum_rates(rates):
-    rates_cum = []
-    rates_cum.append(rates[0])
+    #print(len(rates))
+    rates_cum = [rates[0]]
     for i in range(1, len(rates)):
         rates_cum.append(rates_cum[i - 1] + rates[i])
+    
     return np.array(rates_cum)
