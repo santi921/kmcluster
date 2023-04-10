@@ -12,7 +12,7 @@ from kmcluster.core.trajectory import (
 from tabulate import tabulate
 import itertools
 from bisect import bisect_right
-
+import pickle as pkl
 from kmcluster.core.trajectory import trajectory_minimum
 from kmcluster.core.intialize import population_ind_to_minimum_trajectories
 #from kmcluster.core.viz import compute_state_counts
@@ -29,8 +29,7 @@ class kmc:
         final_save_prefix="saved_data",
         time_stop=-1,
         sample_frequency=-1,
-        load_from_state_mat=False,
-        state_mat_file=None,
+        state_dict_file=None,
         batch_size=1000,
     ):
         self.draw_crit = draw_crit
@@ -45,20 +44,18 @@ class kmc:
         self.sample_index = 0
         self.n_states = energies.shape[0]
         self.batch_size = batch_size
-        self.load_from_state_dict = load_from_state_mat
-        self.state_mat_file = state_mat_file
+        self.state_dict_file = state_dict_file
         
         
         if sample_frequency == -1:
             self.sample_frequency = time_stop/100
         
         self.results_mat = np.zeros((self.n_states, 1+int(self.time_stop/self.sample_frequency)))
-        print("results_mat shape: ", self.results_mat.shape)
-        self.probe_status = [False for i in range(int(self.time_stop/self.sample_frequency))]
+        self.probe_status = [True] + [False for i in range(int(self.time_stop/self.sample_frequency)-1)]
         self.probe_times = np.array([i*self.sample_frequency for i in range(int(self.time_stop/self.sample_frequency))])
         assert (
-            initialization is not None and load_from_state_mat is not None
-        ), "init and trajectories cannot both be not None"
+            initialization is not None or state_dict_file is not None
+        ), "init, load_from_state_mat cannot all be not None"
 
         if checkpoint:
             # check if the checkpoint directory exists'
@@ -67,7 +64,7 @@ class kmc:
         
         # load optionality
         if self.load_from_state_dict:
-            self.load_from_state_dict(self.state_mat_file)
+            self.load_from_state_dict()
     
         else:             
             self.pop_init = initialization.get_init_populations()
@@ -216,13 +213,13 @@ class kmc:
                     print("-"*40)
                     # show first_column of results_mat
                     rolling_ind = bisect_right(self.probe_times, lowest_time)
-                    header = ["{:.1e}".format(i) for i in self.probe_times[rolling_ind:rolling_ind+15]]
-                    table = tabulate(self.results_mat[:,rolling_ind:rolling_ind+15], tablefmt="fancy_grid", headers=header)
-                    #table = tabulate(self.results_mat[], tablefmt="fancy_grid")
+                    print("rolling index: {} out of {}".format(rolling_ind, len(self.probe_times)))
+                    header = ["{:.1e}".format(i) for i in self.probe_times[rolling_ind-1:rolling_ind+15]]
+                    table = tabulate(self.results_mat[:,rolling_ind-1:rolling_ind+15], tablefmt="fancy_grid", headers=header)
                     print(table)
                     # print sum of first 26 columns, 
-                    self.save_as_dict("./test_dict.json")
-                    print("rolling state sum: \n{}".format(np.sum(self.results_mat[:,rolling_ind:rolling_ind+26], axis=0)))
+                    self.save_as_dict("./test_dict.pkl")
+                    print("rolling state sum: \n{}".format(np.sum(self.results_mat[:,rolling_ind-1:rolling_ind+26], axis=0)))
 
                 #print("step count: {}".format(self.step_count))
                 self.step_count = self.step_count + self.batch_size
@@ -310,21 +307,22 @@ class kmc:
         ret_dict = {"running_state": {}}
         
         
-        
+
         ret_dict['time_stop'] = self.time_stop
         ret_dict['population_size'] = self.pop_size
         ret_dict["sample_frequency"] = self.sample_frequency
         ret_dict["probe_status"] = self.probe_status
 
         # save all current run info
-        ret_dict["running_state"]["results_mat"] = self.results_mat
-        ret_dict["running_state"]["traj_times"] = [i.get_current_state() for i in self.trajectories]
-        ret_dict["running_state"]["traj_states"] = [i.get_current_time() for i in self.trajectories]
+        ret_dict["results_mat"] = self.results_mat
+        ret_dict["traj_times"] = [i.get_current_time() for i in self.trajectories]
+        ret_dict["traj_states"] = [i.get_current_state() for i in self.trajectories]
 
-        #with open(file, 'w') as fp:
-        #    json.dump(ret_dict, fp)
-        #np.save(file, ret_dict)
-        pd.from_dict(ret_dict).to_json(file)
+        
+        with open(file, 'wb') as output:
+            # Pickle dictionary using protocol 0.
+            pkl.dump(ret_dict, output)
+        
 
     def load_from_state_dict(self):
         """
@@ -332,23 +330,21 @@ class kmc:
         """
         trajectories = []
         
-        # read dictionary from file
-        with open(self.save_dict_file, "r") as f:
-            ret_dict = json.load(f)
-        
+        with open(self.state_dict_file, 'rb') as input:
+            ret_dict = pkl.load(input)
         ########################################################
         ##### initializes the most current info on the run #####
         times_init = np.zeros(ret_dict["population_size"])
-        traj_times = ret_dict["running_state"]["traj_times"]
-        traj_states = ret_dict["running_state"]["traj_states"]
+        traj_times = ret_dict["traj_times"]
+        traj_states = ret_dict["traj_states"]
 
         for ind, i in enumerate(traj_times):
-            traj_temp = ret_dict["running_state"]["traj_times"][ind]
+            traj_temp = ret_dict["traj_times"][ind]
             times_init[ind] = traj_temp
             trajectories.append(
                 trajectory_minimum(init_state=traj_states[ind], init_time=i)
             )
-        self.results_mat = np.array(ret_dict["running_state"]["results_mat"])
+        self.results_mat = np.array(ret_dict["results_mat"])
         self.trajectories = trajectories
         self.pop_size = len(trajectories)
         ########################################################
@@ -362,12 +358,12 @@ class kmc:
         self.time_stop = ret_dict["time_stop"]
 
         ########################################################
-        print("done reloading from file {}".format(self.save_dict_file))
+        print("done reloading from file {}".format(self.state_dict_file))
         print("loaded {} trajectories".format(len(trajectories)))
-        print("loaded {} probe states".format(len(self.probe_mats)))
         print("{}% of probe states are complete".format(100 * np.sum(self.probe_status) / len(self.probe_status)))
-        print("sample frequency is {}".format(self.sample_frequency))
-        print("slowest trajectory is ")
+        print("sample frequency is {}s".format(self.sample_frequency))
+        lowest_time = np.min(ret_dict["traj_times"])
+        print("slowest trajectory is {}".format(lowest_time))
 
 
     def plot_top_n_states(

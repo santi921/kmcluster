@@ -327,8 +327,7 @@ class trajectory_minimum:
             
             if ret_all:
                 return probe_states, probe_inds, self.current_state, self.current_time
-            #print(new_states)
-            #print(probe_states, probe_inds)
+            
             return probe_states, probe_inds             
         else: 
             if ret_all:
