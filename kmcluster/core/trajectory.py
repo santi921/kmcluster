@@ -276,7 +276,7 @@ class trajectory:
         return states
 
 class trajectory_minimum:
-    def __init__(self, init_state, init_time):
+    def __init__(self, init_state, init_time, index_of_last_sample=0):
         """
         A basic trajectory object. Stores basically no data for effecieny.
             init_state is the current state of the traj
@@ -286,7 +286,7 @@ class trajectory_minimum:
         __slots__ = ()
         self.current_state = init_state
         self.current_time = init_time
-        self.index_of_last_sample = 0
+        self.index_of_last_sample = index_of_last_sample
 
     #setter and getter for current state
     def set_current_state(self, state):
@@ -299,6 +299,11 @@ class trajectory_minimum:
         self.current_time = time
     def get_current_time(self):
         return self.current_time
+    
+    def get_index_of_last_sample(self):
+        return self.index_of_last_sample
+    def set_index_of_last_sample(self, index):
+        self.index_of_last_sample = index
 
     def batched_step(self, draw_crit, state_samples, neg_log_time_samples, sample_frequency, time_stop, ret_all=False):
         last_state = self.current_state 

@@ -26,7 +26,7 @@ class kmc:
         initialization=None,
         checkpoint=False,
         checkpoint_dir="./checkpoints/",
-        final_save_prefix="saved_data",
+        ckptprefix="saved_data",
         time_stop=-1,
         sample_frequency=-1,
         state_dict_file=None,
@@ -37,7 +37,7 @@ class kmc:
         self.time_stop = time_stop
         self.initialization = initialization
         self.checkpoint = checkpoint
-        self.final_save_prefix = final_save_prefix
+        self.ckptprefix = ckptprefix
         self.checkpoint_dir = checkpoint_dir
         self.pop_prop_hist = []
         self.save_ind = 1
@@ -46,6 +46,11 @@ class kmc:
         self.batch_size = batch_size
         self.state_dict_file = state_dict_file
         
+        # if checkpoint 
+        if checkpoint:
+            # check if folder exists
+            if not os.path.exists(checkpoint_dir):
+                os.makedirs(checkpoint_dir)
         
         if sample_frequency == -1:
             self.sample_frequency = time_stop/100
@@ -71,17 +76,6 @@ class kmc:
             self.trajectories = population_ind_to_minimum_trajectories(self.pop_init)
             self.pop_size = initialization.size
         
-        #### from rfkmc #### from rfkmc #### from rfkmc 
-        """rate_mat = np.zeros((len(energies), len(energies)))
-        for i in range(len(self.energies)):
-            for j in range(len(self.energies[0])):
-                if self.energy_mat[i, j] != 0:
-                    rate_mat[i, j] = (self.k_b_t / (4.1357 * 10**-15)) * np.exp(
-                        -(self.energies[i, j] / (self.k_b_t))
-                    )
-        self.rate_mat = np.array(rate_mat)
-        self.sum_rates = np.sum(self.rate_mat, axis=1)"""
-        #### from rfkmc #### from rfkmc #### from rfkmc
 
         print("done initializing....")
 
@@ -201,7 +195,7 @@ class kmc:
                 timer_end = time.time()
                 time_list.append(timer_end - timer_start)
                 
-                if self.step_count > 5000 * ind_tracker:
+                if self.step_count > 10000 * ind_tracker:
                     lowest_time = np.min(last_time_arr)
                     mean_time = np.mean(last_time_arr)
                     ind_tracker += 1
@@ -214,19 +208,27 @@ class kmc:
                     # show first_column of results_mat
                     rolling_ind = bisect_right(self.probe_times, lowest_time)
                     print("rolling index: {} out of {}".format(rolling_ind, len(self.probe_times)))
-                    header = ["{:.1e}".format(i) for i in self.probe_times[rolling_ind-1:rolling_ind+15]]
-                    table = tabulate(self.results_mat[:,rolling_ind-1:rolling_ind+15], tablefmt="fancy_grid", headers=header)
+                    #header = ["{:.1e}".format(i) for i in self.probe_times[rolling_ind-1:rolling_ind+15]]
+                    #table = tabulate(self.results_mat[:,rolling_ind-1:rolling_ind+15], tablefmt="fancy_grid", headers=header)
+                    header = ["{:.1e}".format(i) for i in self.probe_times[0:rolling_ind+15]]
+                    table = tabulate(self.results_mat[:,0:rolling_ind+15], tablefmt="fancy_grid", headers=header)
+                    
                     print(table)
                     # print sum of first 26 columns, 
-                    self.save_as_dict("./test_dict.pkl")
+                    
                     print("rolling state sum: \n{}".format(np.sum(self.results_mat[:,rolling_ind-1:rolling_ind+26], axis=0)))
-
+                    self.save_as_dict(
+                        "{}{}_trajectories_step_{}_ckpt.pkl".format(
+                            self.checkpoint_dir, self.ckptprefix, self.step_count
+                        )
+                    )
                 #print("step count: {}".format(self.step_count))
                 self.step_count = self.step_count + self.batch_size
                 
                
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
                 lowest_time = np.min(last_time_arr)
+                
                 ind_lowest = bisect_right(self.probe_times, lowest_time)
                 
                 try:
@@ -239,8 +241,12 @@ class kmc:
                         print("hit checkpoint {}/10".format(self.save_ind))
                         print("saving checkpoint at step {}".format(self.step_count))
                         time_save = self.time_stop * self.save_ind / 10
-                        save_step = time_save / self.coarsening_mesh
-                        self.save_as_dict("./test_dict.json")
+                        #save_step = time_save / self.coarsening_mesh
+                        self.save_as_dict(
+                            "{}{}_trajectories_{}_ckpt.pkl".format(
+                                self.checkpoint_dir, self.ckptprefix, self.save_ind
+                            )
+                        )
                         trigger = True
                 
                 if trigger:
@@ -255,16 +261,12 @@ class kmc:
             if self.checkpoint and not os.path.exists(self.checkpoint_dir):
                 os.mkdir(self.checkpoint_dir)
             
-            # TODO: renable after optimizing
-            """self.save_as_matrix(
-                file="{}{}_trajectories_{}_final_ckpt".format(
-                    self.checkpoint_dir, self.final_save_prefix, self.save_ind
-                ),
-                start_time=start_time,
-                end_time=end_time,
-                step=step,
-                append=False,
-            )"""
+            
+            self.save_as_dict(
+                file="{}{}_trajectories_{}_final_ckpt.pkl".format(
+                    self.checkpoint_dir, self.ckptprefix, self.save_ind
+                )
+            )
     
             #if lowest_time is None:
             # check if lowest_time is instantiated
@@ -272,7 +274,7 @@ class kmc:
             
             lowest_time = np.min(last_time_arr)
             mean_time = np.mean(last_time_arr)
-
+            print("sum of results at each probe time: {}".format(np.sum(self.results_mat, axis=0)))
             print(
                     "Lowest time at final step {}: {:.5e}".format(
                         self.step_count, lowest_time
@@ -285,17 +287,6 @@ class kmc:
                 self.step()
     
 
-    def get_state_dict_at_time_as_pandas(self, t=0):
-        """
-        Returns a pandas dataframe of states and their counts at time t
-        Takes:
-            t: time to get state counts at
-        Returns:
-            ret_df: pandas dataframe of states and their counts
-        """
-        raise NotImplementedError("get_state_dict_at_time_as_pandas not implemented")
-
-
     def save_as_dict(self, file):
         """
         Saves states to json file
@@ -304,25 +295,20 @@ class kmc:
         Returns:
             None
         """
-        ret_dict = {"running_state": {}}
-        
-        
-
+        ret_dict = {}
         ret_dict['time_stop'] = self.time_stop
         ret_dict['population_size'] = self.pop_size
         ret_dict["sample_frequency"] = self.sample_frequency
         ret_dict["probe_status"] = self.probe_status
-
-        # save all current run info
         ret_dict["results_mat"] = self.results_mat
         ret_dict["traj_times"] = [i.get_current_time() for i in self.trajectories]
         ret_dict["traj_states"] = [i.get_current_state() for i in self.trajectories]
-
+        ret_dict["index_of_sample"] = [i.get_index_of_last_sample() for i in self.trajectories]
         
         with open(file, 'wb') as output:
             # Pickle dictionary using protocol 0.
             pkl.dump(ret_dict, output)
-        
+
 
     def load_from_state_dict(self):
         """
@@ -332,17 +318,24 @@ class kmc:
         print("-"*20 + "Reload Module" + "-"*20)
         with open(self.state_dict_file, 'rb') as input:
             ret_dict = pkl.load(input)
+        assert ret_dict["sample_frequency"] == self.sample_frequency, "my brother in christ the sampling freq must be the same as the save dict"
+        assert ret_dict["time_stop"] == self.time_stop, "my brother in christ the time stop must be the same as the save dict"
+        
         ########################################################
         ##### initializes the most current info on the run #####
         times_init = np.zeros(ret_dict["population_size"])
         traj_times = ret_dict["traj_times"]
         traj_states = ret_dict["traj_states"]
-
-        for ind, i in enumerate(traj_times):
-            traj_temp = ret_dict["traj_times"][ind]
-            times_init[ind] = traj_temp
+        traj_sample_index = ret_dict["index_of_sample"]
+        lowest_time = np.min(traj_times)
+        for time, state, sample_index in zip(traj_times, traj_states, traj_sample_index):
+            #traj_temp = ret_dict["traj_times"][ind]
+            #times_init[ind] = traj_temp
             trajectories.append(
-                trajectory_minimum(init_state=traj_states[ind], init_time=i)
+                trajectory_minimum(
+                init_state=state, 
+                init_time=time,
+                index_of_last_sample=sample_index)
             )
         self.results_mat = np.array(ret_dict["results_mat"])
         self.trajectories = trajectories
@@ -352,8 +345,6 @@ class kmc:
         ########################################################
         ########## initalizes probe states ##########
         self.probe_status = ret_dict["probe_status"] 
-        assert ret_dict["sample_frequency"] == self.sample_frequency, "my brother in christ the sampling freq must be the same as the save dict"
-        assert ret_dict["time_stop"] == self.time_stop, "my brother in christ the time stop must be the same as the save dict"
         self.sample_frequency = ret_dict["sample_frequency"]
         self.time_stop = ret_dict["time_stop"]
 
@@ -362,16 +353,17 @@ class kmc:
         print("loaded {} trajectories".format(len(trajectories)))
         print("{}% of probe states are complete".format(100 * np.sum(self.probe_status) / len(self.probe_status)))
         print("sample frequency is {}s".format(self.sample_frequency))
-        lowest_time = np.min(ret_dict["traj_times"])
+        
+        #print("sum of results mat is {}".format(np.sum(self.results_mat)))
+
         print("slowest trajectory is {}".format(lowest_time))
         print("-"*20 + "Reload Module" + "-"*20)    
 
-        
+
     def plot_top_n_states_stacked(
             self, 
+            max_time,
             n_show=5, 
-            resolution=None, 
-            max_time=None,
             title=None,
             xlabel=None, 
             ylabel=None,
@@ -387,12 +379,7 @@ class kmc:
         """
         if n_show == -1:
             n_show = self.n_states
-
-        if max_time is None:
-            max_time = self.lowest_time
         
-        if resolution is None:
-            resolution = self.lowest_time / 100
 
         count_dict = self.results_mat.T
         # convert to pandas
@@ -402,9 +389,7 @@ class kmc:
         count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
-        print(count_df.head())
-        print(count_df.keys())
-    
+        
         # sum all counts for each state
         sum_count = count_df.sum(axis=0)
         # get top n states
@@ -417,7 +402,7 @@ class kmc:
         df_show = count_df[keys_top_n]
         # divide by total population size
         df_show = df_show / self.pop_size    
-        print(df_show.head())
+        
         fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
 
         # set xlim 
@@ -441,83 +426,11 @@ class kmc:
         if save:
             fig.write_image(save_name)        
 
-    def plot_top_n_states_stacked(
-            self, 
-            n_show=5, 
-            resolution=None, 
-            max_time=None,
-            title=None,
-            xlabel=None, 
-            ylabel=None,
-            save=False,
-            show=True,
-            save_name="./output_top.png", ):
-        """
-        bin and count what states are in what bins
-        Takes:
-            list of trajectories objects
-            resolution(float): bin size
-            time_stop(float): time upper bound on counting
-        """
-        if n_show == -1:
-            n_show = self.n_states
-
-        if max_time is None:
-            max_time = self.lowest_time
-        
-        if resolution is None:
-            resolution = self.lowest_time / 100
-
-        count_dict = self.results_mat.T
-        # convert to pandas
-        #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
-        count_df = pd.DataFrame(count_dict)
-        #add column names as times 
-        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
-        #add row names as states
-        count_df.columns = np.arange(0, self.n_states)
-        
-        # sum all counts for each state
-        sum_count = count_df.sum(axis=0)
-        # get top n states
-        keys_top_n = sum_count.nlargest(n_show).index.to_list()
-
-        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
-        counts_per_state = np.zeros((n_show, len(x_axis)))
-        self.pop_size
-
-        df_show = count_df[keys_top_n]
-        # divide by total population size
-        df_show = df_show / self.pop_size    
-        print(df_show.head())
-        fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
-
-        # set xlim 
-        fig.update_xaxes(range=[0, max_time])
-        # set ylim
-        fig.update_yaxes(range=[0, 1])
-        # show legend 
-        fig.update_layout(showlegend=True)
-        
-        if title: 
-            fig.update_layout(title=title, title_font_size=16)        
-        if xlabel:
-            fig.update_xaxes(title=xlabel, title_font_size=14)
-        if ylabel:
-            fig.update_yaxes(title=ylabel, title_font_size=14)
-
-        # save plotly express figure 
-        if show:
-            fig.show()
-
-        if save:
-            fig.write_image(save_name)        
 
     def plot_select_states_stacked(
             self, 
             states_to_plot, 
-            resolution=None, 
-            max_time=None,
+            max_time,
             title=None,
             xlabel=None, 
             ylabel=None,
@@ -532,13 +445,8 @@ class kmc:
             time_stop(float): time upper bound on counting
         """
         
-        if max_time is None:
-            max_time = self.lowest_time
-        
-        if resolution is None:
-            resolution = self.lowest_time / 100
-
         count_dict = self.results_mat.T
+        
         # convert to pandas
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
@@ -547,18 +455,140 @@ class kmc:
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
         
-        # sum all counts for each state
-        sum_count = count_df.sum(axis=0)
         # get top n states
-        #keys_to_plot = sum_count.nlargest(n_show).index.to_list()
-
         x_axis = np.arange(0, self.time_stop, self.sample_frequency)
         
         df_show = count_df[states_to_plot]
         # divide by total population size
         df_show = df_show / self.pop_size    
-        print(df_show.head())
         fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, df_show.max()])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+
+        # save plotly express figure 
+        if show:
+            fig.show()
+
+        if save:
+            fig.write_image(save_name)        
+
+
+    def plot_select_states(
+            self, 
+            states_to_plot, 
+            max_time,
+            title=None,
+            xlabel=None, 
+            ylabel=None,
+            save=False,
+            show=True,
+            save_name="./output_top.png", ):
+        """
+        bin and count what states are in what bins
+        Takes:
+            list of trajectories objects
+            resolution(float): bin size
+            time_stop(float): time upper bound on counting
+        """
+    
+        count_dict = self.results_mat.T
+        
+        # convert to pandas
+        #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
+        count_df = pd.DataFrame(count_dict)
+        #add column names as times 
+        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        #add row names as states
+        count_df.columns = np.arange(0, self.n_states)
+        
+        # get top n states
+        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        
+        df_show = count_df[states_to_plot]
+        # divide by total population size
+        df_show = df_show / self.pop_size    
+        
+        fig = px.line(df_show, title=title, x=x_axis, y=df_show.keys())
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, max(df_show.max())])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+
+        # save plotly express figure 
+        if show:
+            fig.show()
+
+        if save:
+            fig.write_image(save_name)      
+
+
+    def plot_top_n_states(
+            self, 
+            max_time,
+            n_show=5, 
+            title=None,
+            xlabel=None, 
+            ylabel=None,
+            save=False,
+            show=True,
+            save_name="./output_top.png", ):
+        """
+        bin and count what states are in what bins
+        Takes:
+            list of trajectories objects
+            resolution(float): bin size
+            time_stop(float): time upper bound on counting
+        """
+        if n_show == -1:
+            n_show = self.n_states
+        
+
+        count_dict = self.results_mat.T
+        # convert to pandas
+        #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
+        count_df = pd.DataFrame(count_dict)
+        #add column names as times 
+        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        #add row names as states
+        count_df.columns = np.arange(0, self.n_states)
+        
+        # sum all counts for each state
+        sum_count = count_df.sum(axis=0)
+        # get top n states
+        keys_top_n = sum_count.nlargest(n_show).index.to_list()
+
+        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        counts_per_state = np.zeros((n_show, len(x_axis)))
+        self.pop_size
+
+        df_show = count_df[keys_top_n]
+        # divide by total population size
+        df_show = df_show / self.pop_size    
+        
+        #fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
+        fig = px.line(df_show, title=title, x=x_axis, y=df_show.keys())
 
         # set xlim 
         fig.update_xaxes(range=[0, max_time])
@@ -579,41 +609,9 @@ class kmc:
             fig.show()
 
         if save:
-            fig.write_image(save_name)        
+            fig.write_image(save_name)     
 
-def load_kmc_from_matrix(
-        state_file, 
-        energies_mat, 
-        draw_crit, 
-        time_stop
-    ):
-    """
-    Loads states from file
-    Takes:
-        file: file to load from
-    Returns:
-        ret_dict: dictionary of states and their counts
-    """
-    
-    energies_nonzero = energies_mat[energies_mat != 0]
-    print("smallest barrier: ", min(energies_nonzero))
 
-    # initialize kmc object
-    kmc_boltz = kmc(
-        energies=energies_mat,
-        draw_crit=draw_crit,
-        time_stop=time_stop,
-        initialization=None,
-        load_from_dictionary=True, 
-        save_dict_file=state_file,
-        checkpoint=False,
-        checkpoint_dir="./checkpoints/",
-        final_save_prefix="saved_data",
-        batch_size=1000, 
-    )
-     
-    kmc.load_from_state_dict()
-    
 
 def rates_to_cum_rates(rates):
     #print(len(rates))
