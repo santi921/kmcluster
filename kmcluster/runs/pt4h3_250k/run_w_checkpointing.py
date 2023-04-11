@@ -181,7 +181,7 @@ def get_merge_data_new():
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
     T_kelvin = 100
-    Pt_H2_all, Pt4H2_relE = get_merge_data()
+    Pt_H2_all, Pt4H2_relE = get_merge_data_new()
     
     energies_mat = sparse_to_mat(Pt_H2_all)
     #print(energies_mat)
@@ -230,18 +230,7 @@ if __name__ == "__main__":
     
     
     print("plotly plot - top states")
-    
-    """
-    kmc_boltz.plot_top_n_states_stacked(
-    	n_show = 5,
-    	resolution=0.000001, 
-    	max_time=None, 
-    	title="State Distribution, {}K".format(T_kelvin),
-        xlabel="Time (s)",
-        ylabel="Population Proportion", 
-    	save=True, 
-        show=True,
-    	save_name="Pt4H2_g_stacked_150K.png")
+  
 
     print("plotly plot - select states")
 
@@ -256,4 +245,3 @@ if __name__ == "__main__":
         show=True,
         save_name="Pt4H2_g_stacked_select_150K.png"
     )
-    """

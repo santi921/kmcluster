@@ -441,10 +441,9 @@ class kmc:
         if save:
             fig.write_image(save_name)        
 
-
-    def plot_select_states_stacked(
+    def plot_top_n_states_stacked(
             self, 
-            states_to_plot,
+            n_show=5, 
             resolution=None, 
             max_time=None,
             title=None,
@@ -460,8 +459,127 @@ class kmc:
             resolution(float): bin size
             time_stop(float): time upper bound on counting
         """
-        raise NotImplementedError
+        if n_show == -1:
+            n_show = self.n_states
+
+        if max_time is None:
+            max_time = self.lowest_time
         
+        if resolution is None:
+            resolution = self.lowest_time / 100
+
+        count_dict = self.results_mat.T
+        # convert to pandas
+        #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
+        count_df = pd.DataFrame(count_dict)
+        #add column names as times 
+        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        #add row names as states
+        count_df.columns = np.arange(0, self.n_states)
+        
+        # sum all counts for each state
+        sum_count = count_df.sum(axis=0)
+        # get top n states
+        keys_top_n = sum_count.nlargest(n_show).index.to_list()
+
+        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        counts_per_state = np.zeros((n_show, len(x_axis)))
+        self.pop_size
+
+        df_show = count_df[keys_top_n]
+        # divide by total population size
+        df_show = df_show / self.pop_size    
+        print(df_show.head())
+        fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, 1])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+
+        # save plotly express figure 
+        if show:
+            fig.show()
+
+        if save:
+            fig.write_image(save_name)        
+
+    def plot_select_states_stacked(
+            self, 
+            states_to_plot, 
+            resolution=None, 
+            max_time=None,
+            title=None,
+            xlabel=None, 
+            ylabel=None,
+            save=False,
+            show=True,
+            save_name="./output_top.png", ):
+        """
+        bin and count what states are in what bins
+        Takes:
+            list of trajectories objects
+            resolution(float): bin size
+            time_stop(float): time upper bound on counting
+        """
+        
+        if max_time is None:
+            max_time = self.lowest_time
+        
+        if resolution is None:
+            resolution = self.lowest_time / 100
+
+        count_dict = self.results_mat.T
+        # convert to pandas
+        #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
+        count_df = pd.DataFrame(count_dict)
+        #add column names as times 
+        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        #add row names as states
+        count_df.columns = np.arange(0, self.n_states)
+        
+        # sum all counts for each state
+        sum_count = count_df.sum(axis=0)
+        # get top n states
+        #keys_to_plot = sum_count.nlargest(n_show).index.to_list()
+
+        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        
+        df_show = count_df[states_to_plot]
+        # divide by total population size
+        df_show = df_show / self.pop_size    
+        print(df_show.head())
+        fig = px.area(df_show, title=title, x=x_axis, y=df_show.keys())
+
+        # set xlim 
+        fig.update_xaxes(range=[0, max_time])
+        # set ylim
+        fig.update_yaxes(range=[0, 1])
+        # show legend 
+        fig.update_layout(showlegend=True)
+        
+        if title: 
+            fig.update_layout(title=title, title_font_size=16)        
+        if xlabel:
+            fig.update_xaxes(title=xlabel, title_font_size=14)
+        if ylabel:
+            fig.update_yaxes(title=ylabel, title_font_size=14)
+
+        # save plotly express figure 
+        if show:
+            fig.show()
+
+        if save:
+            fig.write_image(save_name)        
 
 def load_kmc_from_matrix(
         state_file, 
