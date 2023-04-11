@@ -54,6 +54,8 @@ class kmc:
         
         if sample_frequency == -1:
             self.sample_frequency = time_stop/100
+        else: 
+            self.sample_frequency = time_stop/sample_frequency
         
         self.results_mat = np.zeros((self.n_states, 1+int(self.time_stop/self.sample_frequency)))
         self.probe_status = [True] + [False for i in range(int(self.time_stop/self.sample_frequency)-1)]
@@ -396,10 +398,13 @@ class kmc:
         keys_top_n = sum_count.nlargest(n_show).index.to_list()
 
         x_axis = np.arange(0, self.time_stop, self.sample_frequency)
-        counts_per_state = np.zeros((n_show, len(x_axis)))
+        #counts_per_state = np.zeros((n_show, len(x_axis)))
         self.pop_size
 
+        # sort keys 
+        keys_top_n.sort()
         df_show = count_df[keys_top_n]
+        
         # divide by total population size
         df_show = df_show / self.pop_size    
         

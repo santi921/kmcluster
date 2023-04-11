@@ -181,7 +181,7 @@ def get_merge_data_new():
 # main function
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
-    T_kelvin = 200
+    T_kelvin = 100
     Pt_H2_all, Pt4H2_relE = get_merge_data_new()
     energies_mat = sparse_to_mat(Pt_H2_all)
     energies_nonzero = energies_mat[energies_mat != 0]
@@ -202,6 +202,7 @@ if __name__ == "__main__":
         draw_crit=rfkmc_obj,
         initialization=init_random,
         checkpoint=True,
+        sample_frequency=1000,
         ckptprefix="Pt4H2_g_{}_".format(T_kelvin),
         checkpoint_dir="./checkpoints/", # change this to organize runs
         batch_size=1000, 

@@ -180,8 +180,8 @@ def get_merge_data_new():
 # main function
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
-    T_kelvin = 200
-    Pt_H2_all, Pt4H2_relE = get_merge_data_new()
+    T_kelvin = 100
+    Pt_H2_all, Pt4H2_relE = get_merge_data()
     
     energies_mat = sparse_to_mat(Pt_H2_all)
     #print(energies_mat)
@@ -200,10 +200,11 @@ if __name__ == "__main__":
         energies=energies_mat,
         draw_crit=rfkmc_obj,
         initialization=None,
-        checkpoint=True,
-        checkpoint_dir="./checkpoints_restart/",
-        state_dict_file="./checkpoints/Pt4H2_g_200__trajectories_3_ckpt.pkl",
+        checkpoint=False,
+        #checkpoint_dir="./checkpoints_restart/",
+        #state_dict_file="./checkpoints/Pt4H2_g_200__trajectories_3_ckpt.pkl",
         batch_size=1000, 
+        sample_frequency = 1000
     )
 
     print("running kmc") 
