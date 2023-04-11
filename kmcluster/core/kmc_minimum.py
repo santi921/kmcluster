@@ -381,12 +381,12 @@ class kmc:
         """
         if n_show == -1:
             n_show = self.n_states
-        
 
         count_dict = self.results_mat.T
         # convert to pandas
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
+        count_df = count_df.iloc[:-1]
         #add column names as times 
         count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
         #add row names as states
@@ -455,6 +455,7 @@ class kmc:
         # convert to pandas
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
+        count_df = count_df.iloc[:-1]
         #add column names as times 
         count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
         #add row names as states
@@ -513,14 +514,19 @@ class kmc:
         # convert to pandas
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
+        # remove last row
+        count_df = count_df.iloc[:-1]
+        
         #add column names as times 
+        print(count_df.shape)
+        print(0, self.time_stop, self.sample_frequency)
         count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
         
         # get top n states
         x_axis = np.arange(0, self.time_stop, self.sample_frequency)
-        
+
         df_show = count_df[states_to_plot]
         # divide by total population size
         df_show = df_show / self.pop_size    
@@ -574,6 +580,7 @@ class kmc:
         # convert to pandas
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
+        count_df = count_df.iloc[:-1]
         #add column names as times 
         count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
         #add row names as states
