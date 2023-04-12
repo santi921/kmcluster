@@ -1,5 +1,6 @@
 import numpy as np 
 from bisect import bisect_right, bisect_left
+import brisk
 
 
 class trajectory:
@@ -73,7 +74,7 @@ class trajectory:
             index(int): of state
         """
         # get index of time
-        index = bisect_right(self.transition_times, time)
+        index = brisk.bisect_right(self.transition_times, time)
         return self.states[index - 1]
  
     def states_at_times(self, times):
@@ -85,7 +86,7 @@ class trajectory:
         Returns
             index(int): of state
         """
-        states = [self.states[bisect_right(self.transition_times, time)-1] for time in times]
+        states = [self.states[brisk.bisect_right(self.transition_times, time)-1] for time in times]
         return states
 
 
@@ -130,13 +131,9 @@ class trajectory_minimum:
             state_samples, 
             neg_log_time_samples,
             debug=probe)
-        if probe:
-            print(new_states, times)
-            print(last_state, last_time)
+
         
         times += last_time
-        if probe: print(times)
-
         self.set_current_state(new_states[-1])
         self.set_current_time(times[-1])
 
@@ -147,14 +144,17 @@ class trajectory_minimum:
             if probe: 
                     print("generated times and states:")
                     print(times, time_check)
-            while times[-1] > time_check and time_stop >= time_check:
+            #test_ind = 0 
+            while self.current_time  > time_check and time_stop >= time_check:
                 # find the index of the first time that is greater than the time check ising bisect
                 probe_inds.append(self.index_of_last_sample)
-                sample_trigger = bisect_left(last_time+times, time_check)
+                #sample_trigger = bisect_left([last_time]+list(times), time_check)
+                sample_trigger = brisk.bisect_left(times, time_check)
                 if sample_trigger == 0: 
                     probe_states.append(last_state)
                 else:
-                    probe_states.append(int(new_states[sample_trigger+1])) # for surre this the error
+                    #probe_states.append(int(new_states[sample_trigger-2]))
+                    probe_states.append(int(new_states[sample_trigger-1])) # for surre this the error
                 self.index_of_last_sample = self.index_of_last_sample + 1
                 time_check = sample_frequency * self.index_of_last_sample
             #else: 
@@ -164,7 +164,8 @@ class trajectory_minimum:
                 return probe_states, probe_inds, self.current_state, self.current_time
             
             return probe_states, probe_inds             
-        else: 
+        
+        else: # no sampling points hit
             if ret_all:
                 return [-1], [-1], self.current_state, self.current_time
             return [-1], [-1]

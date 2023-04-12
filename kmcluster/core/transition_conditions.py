@@ -1,7 +1,6 @@
 import numpy as np
 import random
-from bisect import bisect_left
-import numba, brisk
+import brisk
 from numba import jit
 
 class rfkmc:
@@ -71,10 +70,24 @@ class rfkmc:
         last_state = int(state_index)
         
         for i in range(len(rand_states)): 
-            return_state, time_to_transition = self.call(last_state, rand_states[i], neg_log_time_samples[i])
+            #return_state, time_to_transition = self.call(last_state, rand_states[i], neg_log_time_samples[i])
+            
+            sum_rates = self.sum_rates[last_state]
+            rates_cum = self.cum_rates[last_state]
+            
+            if sum_rates == 0: return -1, 10e6
+            rand_state = multiply(rand_states[i], sum_rates) # hot
+            #return_state = bisect_left(rates_cum, rand_state)
+            #return_state = int(brisk.bisect_left(rates_cum, rand_state))
+            time_to_transition = div_index_one(neg_log_time_samples, sum_rates, i)
+            return_state = int(brisk.bisect_left(rates_cum, rand_state))
             return_states[i] = return_state
             last_state = return_state
-            time_to_transitions[i] = time_to_transition + time_to_transitions[i-1] # expensive
+            
+            if i == 0: 
+                time_to_transitions[i] = time_to_transition
+            else:
+                time_to_transitions[i] = time_to_transition + time_to_transitions[i-1] # expensive
     
         return return_states, time_to_transitions
         
@@ -85,6 +98,10 @@ def multiply(a, b):
 @jit(nopython=True)
 def div(a, b): 
     return a / b
+
+@jit(nopython=True)
+def div_index_one(a, b, i): 
+    return a[i] / b
 
 @jit(nopython=True)
 def div_and_sum(a, b, c): 

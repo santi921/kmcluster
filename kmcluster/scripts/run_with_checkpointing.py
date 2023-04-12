@@ -181,7 +181,7 @@ def get_merge_data_new():
 # main function
 if __name__ == "__main__":
     # mess with this data to input yours, ill eventually make a read file
-    T_kelvin = 100
+    T_kelvin = 200
     Pt_H2_all, Pt4H2_relE = get_merge_data_new()
     energies_mat = sparse_to_mat(Pt_H2_all)
     energies_nonzero = energies_mat[energies_mat != 0]

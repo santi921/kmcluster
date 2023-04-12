@@ -155,36 +155,25 @@ class kmc:
                     self.trajectories[ind].set_current_state(res[1])
                     self.trajectories[ind].set_current_time(res[2])
         
-        #print(return_list.get())  
-
-
-
-        #print(np.max(self.results_mat))
-        #print(np.max(self.results_mat))
-
 
     def step_batched(self):
-        print("> batched step") 
+        
         self.rand_state_samples, self.neg_log_rand_time_samples = self.get_sampling()
         
         probe_start_list = []
-        traj_start_list = []
+        #traj_start_list = []
         #print("number of trajectories at batch start: ", len(self.trajectories))
         for ind, traj in enumerate(self.trajectories):  
             
             traj_last_time = traj.last_time()
             traj_last_state = traj.get_current_state()
-            
-            #traj_start_list += [traj_last_time]
-            
+
             if traj_last_time > self.time_stop:
                 continue
 
             else:
                 
-                traj_start_list.append(traj_last_state)
-                
-                probe = False
+                #traj_start_list.append(traj_last_state)
                     
                 probe_states, probe_ind = traj.batched_step(
                     self.draw_crit, 
@@ -192,46 +181,17 @@ class kmc:
                     neg_log_time_samples=self.neg_log_rand_time_samples[ind],
                     sample_frequency=self.sample_frequency,
                     time_stop=self.time_stop,
-                    probe=probe
+                    probe=False
                 )
                     
                 for ind_probe in range(len(probe_states)): 
+                    #print(probe_ind, probe_states)
                     if probe_ind[ind_probe] > -1: 
                         self.results_mat[int(probe_states[ind_probe]), int(probe_ind[ind_probe])] += 1
                 #print("probe: ", probe_ind)
-                if probe_ind[0] > -1:                     
-                    probe_start_list.append(probe_states[0])        
+                #if probe_ind[0] > -1:                     
+                #    probe_start_list.append(probe_states[0])        
                 
-        #print("traj time: ", traj_last_time, "traj state: ", traj_last_state, "probe state: ", probe_states[0], "probe ind: ", probe_ind[0])
-                #if self.step_count == 0: 
-                #    probe_start_list.append(probe_states[0])
-        if self.step_count ==0 : 
-            res_dict = {}
-            list_res = self.results_mat[:, 0].tolist()
-            print(list_res)
-            print("initial probe counts: ", np.sum(list_res))
-            
-
-        if len(probe_start_list) > 0: 
-            dict_print = {}
-            dict_traj_print = {}
-            
-            for i in probe_start_list:
-                if i in dict_print.keys():
-                    dict_print[i] += 1
-                else:
-                    dict_print[i] = 1
-            print("probe list start: ", dict_print)
-                
-            for i in traj_start_list:
-                if i in dict_traj_print.keys():
-                    dict_traj_print[i] += 1
-                else:
-                    dict_traj_print[i] = 1
-            print("traj list start: ", dict_traj_print)
-            print("time traj 0", self.trajectories[0].last_time())
-
-
     def run(self, n_steps=10):
         time_list = []
         if n_steps == -1:
@@ -277,8 +237,6 @@ class kmc:
                     )
                 #print("step count: {}".format(self.step_count))
                 self.step_count = self.step_count + self.batch_size
-                
-               
                 last_time_arr = np.array([i.last_time() for i in self.trajectories])
                 lowest_time = np.min(last_time_arr)
                 
