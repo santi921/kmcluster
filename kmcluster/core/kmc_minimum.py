@@ -17,8 +17,8 @@ from kmcluster.core.trajectory import trajectory_minimum
 from kmcluster.core.intialize import population_ind_to_minimum_trajectories
 #from kmcluster.core.viz import compute_state_counts
 
-
 class kmc:
+
     def __init__(
         self,
         draw_crit,
@@ -58,6 +58,7 @@ class kmc:
             self.sample_frequency = time_stop/sample_frequency
         
         self.results_mat = np.zeros((self.n_states, 1+int(self.time_stop/self.sample_frequency)))
+        print("results mat shape: ", self.results_mat.shape)
         self.probe_status = [True] + [False for i in range(int(self.time_stop/self.sample_frequency)-1)]
         self.probe_times = np.array([i*self.sample_frequency for i in range(int(self.time_stop/self.sample_frequency))])
         assert (
@@ -76,6 +77,7 @@ class kmc:
         else:             
             self.pop_init = initialization.get_init_populations()
             self.trajectories = population_ind_to_minimum_trajectories(self.pop_init)
+            #state_dict(self.trajectories)
             self.pop_size = initialization.size
         
 
@@ -90,7 +92,7 @@ class kmc:
         
         batch_size = self.batch_size
         rand_state_samples = uniform(0, 1, (n_traj, batch_size))
-        rand_time_samples = uniform(0.0000001, 1, (n_traj, batch_size))
+        rand_time_samples = uniform(0, 1, (n_traj, batch_size))
         neg_log_rand_time_samples = -np.log(rand_time_samples)
         
         rand_state_samples = np.float32(rand_state_samples)
@@ -153,7 +155,7 @@ class kmc:
                     self.trajectories[ind].set_current_state(res[1])
                     self.trajectories[ind].set_current_time(res[2])
         
-        print(return_list.get())  
+        #print(return_list.get())  
 
 
 
@@ -162,24 +164,73 @@ class kmc:
 
 
     def step_batched(self):
+        print("> batched step") 
         self.rand_state_samples, self.neg_log_rand_time_samples = self.get_sampling()
+        
+        probe_start_list = []
+        traj_start_list = []
+        #print("number of trajectories at batch start: ", len(self.trajectories))
         for ind, traj in enumerate(self.trajectories):  
-            traj_last_time = traj.last_time() # 
+            
+            traj_last_time = traj.last_time()
+            traj_last_state = traj.get_current_state()
+            
+            #traj_start_list += [traj_last_time]
+            
             if traj_last_time > self.time_stop:
                 continue
+
             else:
+                
+                traj_start_list.append(traj_last_state)
+                
+                probe = False
+                    
                 probe_states, probe_ind = traj.batched_step(
                     self.draw_crit, 
                     state_samples=self.rand_state_samples[ind],
                     neg_log_time_samples=self.neg_log_rand_time_samples[ind],
                     sample_frequency=self.sample_frequency,
-                    time_stop=self.time_stop
+                    time_stop=self.time_stop,
+                    probe=probe
                 )
-    
-                for ind in range(len(probe_states)): 
-                    if probe_ind[ind] > -1: 
-                        self.results_mat[int(probe_states[ind]),int(probe_ind[ind])] += 1
+                    
+                for ind_probe in range(len(probe_states)): 
+                    if probe_ind[ind_probe] > -1: 
+                        self.results_mat[int(probe_states[ind_probe]), int(probe_ind[ind_probe])] += 1
+                #print("probe: ", probe_ind)
+                if probe_ind[0] > -1:                     
+                    probe_start_list.append(probe_states[0])        
                 
+        #print("traj time: ", traj_last_time, "traj state: ", traj_last_state, "probe state: ", probe_states[0], "probe ind: ", probe_ind[0])
+                #if self.step_count == 0: 
+                #    probe_start_list.append(probe_states[0])
+        if self.step_count ==0 : 
+            res_dict = {}
+            list_res = self.results_mat[:, 0].tolist()
+            print(list_res)
+            print("initial probe counts: ", np.sum(list_res))
+            
+
+        if len(probe_start_list) > 0: 
+            dict_print = {}
+            dict_traj_print = {}
+            
+            for i in probe_start_list:
+                if i in dict_print.keys():
+                    dict_print[i] += 1
+                else:
+                    dict_print[i] = 1
+            print("probe list start: ", dict_print)
+                
+            for i in traj_start_list:
+                if i in dict_traj_print.keys():
+                    dict_traj_print[i] += 1
+                else:
+                    dict_traj_print[i] = 1
+            print("traj list start: ", dict_traj_print)
+            print("time traj 0", self.trajectories[0].last_time())
+
 
     def run(self, n_steps=10):
         time_list = []
@@ -387,8 +438,9 @@ class kmc:
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
         count_df = count_df.iloc[:-1]
-        #add column names as times 
-        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        x_axis = np.linspace(0, max_time, len(count_df))
+        #x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        count_df.index = x_axis
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
         
@@ -397,7 +449,10 @@ class kmc:
         # get top n states
         keys_top_n = sum_count.nlargest(n_show).index.to_list()
 
-        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        
+        
+        # make x_axis the same length as the number of bins
+        #x_axis = np.arange(0)
         #counts_per_state = np.zeros((n_show, len(x_axis)))
         self.pop_size
 
@@ -456,8 +511,9 @@ class kmc:
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
         count_df = count_df.iloc[:-1]
-        #add column names as times 
-        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        x_axis = np.linspace(0, max_time, len(count_df))
+        #x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        count_df.index = x_axis
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
         
@@ -516,17 +572,16 @@ class kmc:
         count_df = pd.DataFrame(count_dict)
         # remove last row
         count_df = count_df.iloc[:-1]
-        
         #add column names as times 
-        print(count_df.shape)
-        print(0, self.time_stop, self.sample_frequency)
-        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        count_df = pd.DataFrame(count_dict)
+        count_df = count_df.iloc[:-1]
+        x_axis = np.linspace(0, max_time, len(count_df))
+        #x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        count_df.index = x_axis
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
         
-        # get top n states
-        x_axis = np.arange(0, self.time_stop, self.sample_frequency)
-
+        
         df_show = count_df[states_to_plot]
         # divide by total population size
         df_show = df_show / self.pop_size    
@@ -580,9 +635,14 @@ class kmc:
         # convert to pandas
         #count_df = pd.DataFrame.from_dict(count_dict, orient='index')
         count_df = pd.DataFrame(count_dict)
+        # remove last row
         count_df = count_df.iloc[:-1]
         #add column names as times 
-        count_df.index = np.arange(0, self.time_stop, self.sample_frequency)
+        count_df = pd.DataFrame(count_dict)
+        count_df = count_df.iloc[:-1]
+        x_axis = np.linspace(0, max_time, len(count_df))
+        #x_axis = np.arange(0, self.time_stop, self.sample_frequency)
+        count_df.index = x_axis
         #add row names as states
         count_df.columns = np.arange(0, self.n_states)
         
@@ -634,3 +694,11 @@ def rates_to_cum_rates(rates):
     return np.array(rates_cum)
 
 
+def state_dict(trajectories):
+    diag_dict = {}
+    for traj in trajectories:
+        if traj.get_current_state() in diag_dict:
+            diag_dict[traj.get_current_state()] += 1
+        else:
+            diag_dict[traj.get_current_state()] = 1
+    print("state probe diagnose: ", diag_dict)

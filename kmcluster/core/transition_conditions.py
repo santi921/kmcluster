@@ -3,46 +3,6 @@ import random
 from bisect import bisect_left
 import numba, brisk
 from numba import jit
-#k_b_ev = 8.614 * 10**-5
-#k_b_j = 1.38064852 * 10**-23
-
-
-
-class rfkmc_old:
-    def __init__(self, k_b_t=1):
-        self.k_b_t = k_b_t
-
-    def call(self, energies_total):
-        # filter all states with energy = 0
-        # energies_total = energies_total[energies_total != 0]
-        rate_list = []
-        for i in range(len(energies_total)):
-            if energies_total[i] == 0:
-                rate_list.append(0)
-            else:
-                rate = (self.k_b_t / (4.1357 * 10**-15)) * np.exp(
-                    -(energies_total[i] / (self.k_b_t))
-                )
-                rate_list.append(rate)
-
-        rates_total = np.array(rate_list)
-        sum_rates = np.sum(rates_total)
-        if sum_rates == 0:
-            return -1, 10e6
-        rates_cum = rates_to_cum_rates(rates_total)
-
-        # randomly select a number between 0 and rates_rotal
-        rand_state = random.uniform(0, sum_rates)
-        rand_time = random.uniform(0, 1)
-
-        # find the index of the first rate that is greater than or equal to rand
-        # this is the index of the state that the particle will transition to
-        return_state = np.argmax(rates_cum >= rand_state)
-        time_to_transition = -np.log(rand_time) / sum_rates
-        # print(time_to_transition)
-        return return_state, time_to_transition
-
-
 
 class rfkmc:
     def __init__(self, k_b_t=1, energy_mat=None, rate_mat=None):
@@ -52,13 +12,21 @@ class rfkmc:
         rate_mat = np.zeros((len(energy_mat), len(energy_mat)))
         for i in range(len(self.energy_mat)):
             for j in range(len(self.energy_mat[0])):
+                #print(self.energy_mat[i, j])
                 if self.energy_mat[i, j] != 0:
-                    rate_mat[i, j] = (self.k_b_t / (4.1357 * 10**-15)) * np.exp(
+                    term = (self.k_b_t / (4.1357 * 10**-15)) * np.exp(
                         -(self.energy_mat[i, j] / (self.k_b_t))
                     )
+                    
+                    rate_mat[i, j] = term 
+                    #print(term, rate_mat[i, j], self.energy_mat[i, j])
+
         self.rate_mat = np.array(rate_mat)
+        #self.sum_rates = np.sum(self.rate_mat, axis=1)
+        # sum rates along rows 
         self.sum_rates = np.sum(self.rate_mat, axis=1)
-        
+        #print(energy_mat.shape)
+        #print(self.sum_rates)
         
         self.cum_rates = []
         for i in range(len(self.rate_mat)):
@@ -68,22 +36,9 @@ class rfkmc:
         return self.rate_mat[state_index, :]
     
     
-    def call(self, state_index, rand_state, neg_log_time_sample):
-        
-        sum_rates = self.sum_rates[state_index]
-        rates_cum = self.cum_rates[state_index]
-        
-        if sum_rates == 0: return -1, 10e6
-        rand_state = rand_state * sum_rates
-        
-        return_state = bisect_left(rates_cum, rand_state)
-        time_to_transition = neg_log_time_sample / sum_rates
-        
-        return return_state, time_to_transition
-
-
     def get_sum_cum_rates(self, ind): 
         return self.sum_rates[ind], self.cum_rates[ind]
+    
     
     def inst_ret_vars(self, n): 
         return_states = np.zeros(n)
@@ -91,38 +46,38 @@ class rfkmc:
         return return_states, time_to_transitions
     
 
-    def call_batched(self, state, rand_states, neg_log_time_samples):
+    def call(self, state_index, rand_state, neg_log_time_sample):
+        
+        sum_rates = self.sum_rates[state_index]
+        rates_cum = self.cum_rates[state_index]
+        
+        if sum_rates == 0: return -1, 10e6
+        rand_state = multiply(rand_state, sum_rates) # hot
+        #return_state = bisect_left(rates_cum, rand_state)
+        return_state = int(brisk.bisect_left(rates_cum, rand_state))
+        time_to_transition = neg_log_time_sample / sum_rates
+        
+        return return_state, time_to_transition
+
+
+    def call_batched(self, state_index, rand_states, neg_log_time_samples, debug=False):
         '''
             given a starting state, a list of random states, and a list of negative log time samples
             return a list of states and a list of times to transition
         '''
         return_states, time_to_transitions = self.inst_ret_vars(len(neg_log_time_samples))
-
-        last_state = int(state)
+        #return_states[0] = state_index
+        #time_to_transitions[0] = 0 
+        last_state = int(state_index)
         
         for i in range(len(rand_states)): 
-            #sum_rates, rates_cum = self.get_sum_cum_rates(last_state)
-            sum_rates, rates_cum = self.sum_rates[last_state], self.cum_rates[last_state]
-            if sum_rates == 0:
-                print("sheesh")
-                return_states[i] = last_state
-                time_to_transitions[i] = multiply(10e6, i)
-                continue
-
-            rand_state = multiply(rand_states[i], sum_rates) # hot
-            last_state = int(brisk.bisect_left(rates_cum, rand_state))       
-            
-            return_states[i] = last_state
-
-            if i == 0: 
-                #time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates)
-                time_to_transitions[i] = div_w_index(neg_log_time_samples, sum_rates, i)
-            else:
-                time_to_transitions[i] = div_and_sum(neg_log_time_samples[i], sum_rates, time_to_transitions[i - 1])  # expensive
-
+            return_state, time_to_transition = self.call(last_state, rand_states[i], neg_log_time_samples[i])
+            return_states[i] = return_state
+            last_state = return_state
+            time_to_transitions[i] = time_to_transition + time_to_transitions[i-1] # expensive
+    
         return return_states, time_to_transitions
-        #return compile_base(state, rand_states, neg_log_time_samples, self.sum_rates, self.cum_rates)
-
+        
 @jit(nopython=True)
 def multiply(a, b): 
     return a * b
@@ -137,11 +92,11 @@ def div_and_sum(a, b, c):
 
 @jit(nopython=True)
 def div_w_index(a, b, i):
-    return a[i] / b
+    return a[i] / b[i]
 
 @jit(nopython=True)
 def div_w_index_and_sum(a, b, i, c):
-    return a[i] / b + c
+    return a[i] / b[i] + c[i-1]
 
 # deprecated
 class rkmc:

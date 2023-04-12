@@ -1,5 +1,5 @@
 import numpy as np 
-from bisect import bisect_right
+from bisect import bisect_right, bisect_left
 
 
 class trajectory:
@@ -14,11 +14,15 @@ class trajectory:
             self.states = init_history[0]
             self.transition_times = init_history[1]
 
-    def draw_new_state(self, rates_from_i, draw_crit):
+    """    def draw_new_state(self, rates_from_i, draw_crit):
         # get rates of transition from i to j in probabilities matrix
         new_state, time = draw_crit.call(rates_from_i)
+        return new_state, time"""
+    def draw_new_state(self, index, draw_crit, rand_state, neg_log_time_sample):  
+        # get rates of transition from i to j in probabilities matrix
+        new_state, time = draw_crit.call(index, rand_state, neg_log_time_sample)
         return new_state, time
-
+    
     def get_history_as_dict(self):
         ret_dict = {}
         for i, state in enumerate(self.states):
@@ -30,14 +34,14 @@ class trajectory:
         self.states.append(new_state)
         self.transition_times.append(self.transition_times[-1] + time_transition)
 
-    def step(self, rates_from_i, draw_crit, time_stop=10e9):
+    def step(self, index, draw_crit, rand_state, neg_log_time_sample, time_stop=10e9):
         if time_stop > 0:
             # check that time of last state
             last_transition = self.last_time()
             if last_transition > time_stop:
                 return
 
-        new_state, time_to_transition = self.draw_new_state(rates_from_i, draw_crit)
+        new_state, time_to_transition = self.draw_new_state(index, draw_crit, rand_state, neg_log_time_sample)
 
         if new_state == -1:  # checks if rates out of a state are 0
             new_state = self.last_state()
@@ -71,6 +75,7 @@ class trajectory:
         # get index of time
         index = bisect_right(self.transition_times, time)
         return self.states[index - 1]
+ 
     def states_at_times(self, times):
         """
         given a trajectory return what state it's in a time t
@@ -113,46 +118,60 @@ class trajectory_minimum:
         return self.index_of_last_sample
     def set_index_of_last_sample(self, index):
         self.index_of_last_sample = index
-
-    def batched_step(self, draw_crit, state_samples, neg_log_time_samples, sample_frequency, time_stop, ret_all=False):
-        last_state = self.current_state 
-        last_time = self.current_time
+    def last_time(self):
+        return self.current_time
+    
+    def batched_step(self, draw_crit, state_samples, neg_log_time_samples, sample_frequency, time_stop, ret_all=False, probe=False):
+        last_state = self.get_current_state() 
+        last_time = self.get_current_time()
 
         new_states, times = draw_crit.call_batched(
             last_state, 
             state_samples, 
-            neg_log_time_samples)
+            neg_log_time_samples,
+            debug=probe)
+        if probe:
+            print(new_states, times)
+            print(last_state, last_time)
+        
         times += last_time
-        #print(times)
-        self.current_state = new_states[-1]
-        self.current_time = times[-1]
+        if probe: print(times)
+
+        self.set_current_state(new_states[-1])
+        self.set_current_time(times[-1])
+
         probe_inds, probe_states = [], []
         time_check = sample_frequency * self.index_of_last_sample
 
-
-        if times[-1] > time_check: # this means that at LEAST THE NEXT SAMPLING POINT HIT
-            while times[-1] > time_check and time_check < time_stop:
+        if self.current_time > time_check: # this means that at LEAST THE NEXT SAMPLING POINT HIT
+            if probe: 
+                    print("generated times and states:")
+                    print(times, time_check)
+            while times[-1] > time_check and time_stop >= time_check:
                 # find the index of the first time that is greater than the time check ising bisect
-                sample_trigger = bisect_right(times, time_check)
                 probe_inds.append(self.index_of_last_sample)
-                probe_states.append(int(new_states[sample_trigger]))
+                sample_trigger = bisect_left(last_time+times, time_check)
+                if sample_trigger == 0: 
+                    probe_states.append(last_state)
+                else:
+                    probe_states.append(int(new_states[sample_trigger+1])) # for surre this the error
                 self.index_of_last_sample = self.index_of_last_sample + 1
                 time_check = sample_frequency * self.index_of_last_sample
-            
+            #else: 
+            #    print(time_stop, time_check)
+
             if ret_all:
                 return probe_states, probe_inds, self.current_state, self.current_time
             
             return probe_states, probe_inds             
         else: 
             if ret_all:
-
                 return [-1], [-1], self.current_state, self.current_time
             return [-1], [-1]
         
     #def last_state(self):
     #    return self.current_state
-    def last_time(self):
-        return self.current_time
+
 
 
 def trajectory_from_list(list, start_time, end_time):
@@ -181,8 +200,6 @@ def add_history_to_trajectory(trajectory, history, history_times):
     for i in range(len(history)):
         trajectory.add_new_state(history[i], history_times[i])
     return trajectory
-
-
 
 
 def sample_trajectory(trajectory, start, end, step):

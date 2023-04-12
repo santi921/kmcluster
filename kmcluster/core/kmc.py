@@ -6,6 +6,7 @@ from tqdm import tqdm
 from glob import glob
 import matplotlib.pyplot as plt 
 import plotly.express as px
+from numpy.random import uniform
 
 from kmcluster.core.trajectory import (
     trajectory, 
@@ -71,20 +72,31 @@ class kmc:
 
             if self.time_stop > 0:
                 traj_last_time = traj.last_time()
+                rand_state = uniform(0, 1)
+                neg_log_time_sample = -np.log(uniform(0 , 1))
+
                 # print(traj_last_time)
                 if traj_last_time > self.time_stop:
                     continue
                 else:
                     # print("last traj_ind: " + str(traj_last_ind))
-                    energies_from_i = self.energies[traj_last_ind]
+                    #energies_from_i = self.energies[traj_last_ind]
+                    #warning = traj.step(
+                    #    energies_from_i, self.draw_crit, time_stop=self.time_stop
+                    #)
                     warning = traj.step(
-                        energies_from_i, self.draw_crit, time_stop=self.time_stop
+                        traj_last_ind, self.draw_crit, time_stop=self.time_stop,
+                        rand_state=rand_state, neg_log_time_sample=neg_log_time_sample
                     )
                     sum_warning += warning
             else:
-                energies_from_i = self.energies[traj_last_ind]
+                #energies_from_i = self.energies[traj_last_ind]
+                #warning = traj.step(
+                #    energies_from_i, self.draw_crit, time_stop=self.time_stop
+                #)
                 warning = traj.step(
-                    energies_from_i, self.draw_crit, time_stop=self.time_stop
+                    traj_last_ind, self.draw_crit, time_stop=self.time_stop,
+                    rand_state=rand_state, neg_log_time_sample=neg_log_time_sample
                 )
                 sum_warning += warning
 
