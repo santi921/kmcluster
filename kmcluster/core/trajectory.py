@@ -130,7 +130,7 @@ class trajectory_minimum:
             last_state, 
             state_samples, 
             neg_log_time_samples,
-            debug=probe)
+            )
 
         
         times += last_time
