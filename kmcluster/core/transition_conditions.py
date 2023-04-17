@@ -65,28 +65,38 @@ class rfkmc:
             return a list of states and a list of times to transition
         '''
         return_states, time_to_transitions = self.inst_ret_vars(len(neg_log_time_samples))
-
         last_state = int(state)
         
         for i in range(len(rand_states)): 
-            #sum_rates, rates_cum = self.get_sum_cum_rates(last_state)
+            
+            # if this error hits that means that last_state is not being updated properly
             sum_rates, rates_cum = self.sum_rates[last_state], self.cum_rates[last_state]
+             
             if sum_rates == 0:
-                print("sheesh")
+                print("sheesh - you're stuck in a local minimum w/ no way out!")
                 return_states[i] = last_state
                 time_to_transitions[i] = multiply(10e6, i)
                 continue
-
-            rand_state = multiply(rand_states[i], sum_rates) # hot
-            last_state = int(brisk.bisect_left(rates_cum, rand_state))       
             
-            return_states[i] = last_state
-
-            if i == 0: 
-                #time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates)
-                time_to_transitions[i] = div_w_index(neg_log_time_samples, sum_rates, i)
             else:
-                time_to_transitions[i] = div_and_sum(neg_log_time_samples[i], sum_rates, time_to_transitions[i - 1])  # expensive
+                rand_state = multiply(rand_states[i], sum_rates) # hot
+                last_state = int(brisk.bisect_left(rates_cum, rand_state))       
+                
+                if last_state == len(rates_cum):
+                    print(rates_cum)
+                    print(rand_state)
+                    print(last_state)
+
+                if last_state == len(rates_cum): 
+                    last_state = len(rates_cum) - 1
+                else:
+                    return_states[i] = last_state
+
+                if i == 0: 
+                    #time_to_transitions[i] = div(neg_log_time_samples[i], sum_rates)
+                    time_to_transitions[i] = div_w_index(neg_log_time_samples, sum_rates, i)
+                else:
+                    time_to_transitions[i] = div_and_sum(neg_log_time_samples[i], sum_rates, time_to_transitions[i - 1])  # expensive
 
         return return_states, time_to_transitions
         
