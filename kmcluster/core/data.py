@@ -3,7 +3,8 @@ import pandas as pd
 import numpy as np
 from kmcluster.core.transition_conditions import rfkmc, rkmc
 from kmcluster.core.intialize import random_init, boltz, global_minimum_only, selected
-
+kb = 8.617 * 10 ** (-5)
+import statistics as st
 
 class energy_data:
     def __init__(self, energies=None, rates=None, file_energies=None, file_rates=None):
@@ -354,3 +355,26 @@ def test_dataset_2():
     # all barriers
     Pt4H3_all = Pt4H3_links + Pt4H3_rev
     return Pt4H3_all, Pt4H3_relE
+
+
+def nice_print_clusters(ap, energies_list):
+    for i in range(len(ap.cluster_centers_indices_)):
+        print("Cluster %d" % i)
+        for j in range(len(ap.labels_)):
+            if ap.labels_[j] == i:
+                print("State {} w energy: {:.3f}".format(j, energies_list[j]))
+        print("")
+
+
+def energy_to_rates(energies, temp, scale=1000): 
+    """
+    convert energies to rates
+    """
+    rates = np.zeros(energies.shape)
+    for i in range(len(energies)):
+        for j in range(len(energies)):
+            if energies[i][j]  != 0:
+                #rates[i][j] = scale * energies[i][j] / (kb * temp)
+                rates[i][j] = (temp * kb / (4.1357 * 10**-15)) * np.exp(-energies[i][j] / (kb * temp))
+                
+    return rates
