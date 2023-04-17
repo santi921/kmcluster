@@ -1,4 +1,4 @@
-import os, time, json
+import os, time 
 import pandas as pd 
 import numpy as np
 from tqdm import tqdm
@@ -91,7 +91,7 @@ class kmc:
         n_traj = len(self.trajectories)
         
         batch_size = self.batch_size
-        rand_state_samples = uniform(0, 1, (n_traj, batch_size))
+        rand_state_samples = uniform(0, 0.9999999, (n_traj, batch_size))
         rand_time_samples = uniform(0, 1, (n_traj, batch_size))
         neg_log_rand_time_samples = -np.log(rand_time_samples)
         

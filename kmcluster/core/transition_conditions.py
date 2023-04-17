@@ -82,11 +82,16 @@ class rfkmc:
                 rand_state = multiply(rand_states[i], sum_rates) # hot
                 last_state = int(brisk.bisect_left(rates_cum, rand_state))       
                 
+
+                
                 if last_state == len(rates_cum):
+                    print(rand_states[i])
+                    print(sum_rates)
                     print(rates_cum)
                     print(rand_state)
                     print(last_state)
-
+                    assert last_state != len(rates_cum), "last_state is out of bounds"
+                
                 if last_state == len(rates_cum): 
                     last_state = len(rates_cum) - 1
                 else:
