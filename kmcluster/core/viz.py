@@ -9,12 +9,15 @@ from matplotlib.widgets import Slider, Button
 
 # TODO visualize from dask dataframe, stacked plots
 
+
 def visualize_dask(
-        ddf,
-        start_time, 
-        end_time, 
-        step,
-    ): pass
+    ddf,
+    start_time,
+    end_time,
+    step,
+):
+    pass
+
 
 def set_node_facecolor(G, **kwargs):
     """
@@ -123,8 +126,11 @@ def compute_state_counts(trajectories, resolution, max_time, total_states):
 
     states = []
     for traj in trajectories:
-        [states.append(i) for i in traj.states_at_times(np.arange(0, max_time, resolution))]
-    #for i in np.arange(0, max_time, resolution):
+        [
+            states.append(i)
+            for i in traj.states_at_times(np.arange(0, max_time, resolution))
+        ]
+    # for i in np.arange(0, max_time, resolution):
     #    for traj in trajectories:
     #        states.append(traj.state_at_time(i))
 
@@ -190,7 +196,6 @@ def plot_top_n_states(
     plt.show()
 
 
-
 def plot_states(
     trajectories,
     states_to_plot,
@@ -228,7 +233,7 @@ def plot_states(
                 counts_per_state[states_to_plot.index(state), ind] += 1
 
     for i in range(len(states_to_plot)):
-        plt.plot(x_axis, counts_per_state[i, :]/total_states, label=states_to_plot[i])
+        plt.plot(x_axis, counts_per_state[i, :] / total_states, label=states_to_plot[i])
     if title:
         plt.title(title)
     if xlabel:

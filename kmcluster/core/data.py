@@ -3,8 +3,10 @@ import pandas as pd
 import numpy as np
 from kmcluster.core.transition_conditions import rfkmc, rkmc
 from kmcluster.core.intialize import random_init, boltz, global_minimum_only, selected
+
 kb = 8.617 * 10 ** (-5)
 import statistics as st
+
 
 class energy_data:
     def __init__(self, energies=None, rates=None, file_energies=None, file_rates=None):
@@ -191,7 +193,6 @@ def pull_json(filename):
     return data
 
 
-
 def test_dataset_1():
     """
     mess with this dataset to input your dataset
@@ -224,7 +225,7 @@ def test_dataset_1():
         -17.15164472,
         -17.13649884,
     ]
-    
+
     H1_E = [Pt4H1_rawE[x] - Pt4H1_rawE[0] for x in range(0, len(Pt4H1_rawE))]
 
     Pt4H1_rev = []
@@ -281,10 +282,9 @@ def test_dataset_1():
     return Pt_H1_all, H1_E
 
 
-
-
-def test_dataset_2(): 
-    Pt4H3_relE=[0.0,
+def test_dataset_2():
+    Pt4H3_relE = [
+        0.0,
         0.05265172000000007,
         0.08150556000000009,
         0.08234174999999766,
@@ -309,48 +309,51 @@ def test_dataset_2():
         0.3220917700000001,
         0.3320207499999981,
         0.3357182899999991,
-        0.34816155999999765]
-    Pt4H3_links=[[0, 3, 0.39],
-     [1, 5, 0.27],
-     [1, 16, 0.39],
-     [2, 16, 0.55],
-     [2, 19, 0.55],
-     [3, 19, 0.23],
-     [4, 18, 0.22],
-     [6, 14, 0.17],
-     [6, 8, 0.17],
-     [7, 14, 0.14],
-     [7, 24, 0.37],
-     [12, 16, 0.23],
-     [16, 19, 0.35],
-     [20, 23, 0.45],
-     [0, 10, 0.27],
-     [0, 18, 0.74],
-     [0, 22, 0.43],
-     [1, 9, 0.17],
-     [2, 13, 0.36],
-     [3, 10, 0.34],
-     [5, 14, 0.17],
-     [5, 15, 0.31],
-     [5, 25, 0.67],
-     [12, 22, 0.61],
-     [11, 18, 0.27],
-     [15, 17, 0.16],
-     [7, 17, 0.36],
-     [20, 21, 0.26]]
+        0.34816155999999765,
+    ]
+    Pt4H3_links = [
+        [0, 3, 0.39],
+        [1, 5, 0.27],
+        [1, 16, 0.39],
+        [2, 16, 0.55],
+        [2, 19, 0.55],
+        [3, 19, 0.23],
+        [4, 18, 0.22],
+        [6, 14, 0.17],
+        [6, 8, 0.17],
+        [7, 14, 0.14],
+        [7, 24, 0.37],
+        [12, 16, 0.23],
+        [16, 19, 0.35],
+        [20, 23, 0.45],
+        [0, 10, 0.27],
+        [0, 18, 0.74],
+        [0, 22, 0.43],
+        [1, 9, 0.17],
+        [2, 13, 0.36],
+        [3, 10, 0.34],
+        [5, 14, 0.17],
+        [5, 15, 0.31],
+        [5, 25, 0.67],
+        [12, 22, 0.61],
+        [11, 18, 0.27],
+        [15, 17, 0.16],
+        [7, 17, 0.36],
+        [20, 21, 0.26],
+    ]
     # calculating the reverse barriers
     Pt4H3_rev = []
     for i in range(0, len(Pt4H3_links)):
         Pt4H3_rev.append(
-        [
-            Pt4H3_links[i][1],
-            Pt4H3_links[i][0],
-            round(
-            (Pt4H3_links[i][2] + Pt4H3_relE[Pt4H3_links[i][0]])
-            - Pt4H3_relE[Pt4H3_links[i][1]],
-            2,
-            ),
-        ]
+            [
+                Pt4H3_links[i][1],
+                Pt4H3_links[i][0],
+                round(
+                    (Pt4H3_links[i][2] + Pt4H3_relE[Pt4H3_links[i][0]])
+                    - Pt4H3_relE[Pt4H3_links[i][1]],
+                    2,
+                ),
+            ]
         )
     # all barriers
     Pt4H3_all = Pt4H3_links + Pt4H3_rev
@@ -366,15 +369,17 @@ def nice_print_clusters(ap, energies_list):
         print("")
 
 
-def energy_to_rates(energies, temp, scale=1000): 
+def energy_to_rates(energies, temp, scale=1000):
     """
     convert energies to rates
     """
     rates = np.zeros(energies.shape)
     for i in range(len(energies)):
         for j in range(len(energies)):
-            if energies[i][j]  != 0:
-                #rates[i][j] = scale * energies[i][j] / (kb * temp)
-                rates[i][j] = (temp * kb / (4.1357 * 10**-15)) * np.exp(-energies[i][j] / (kb * temp))
-                
+            if energies[i][j] != 0:
+                # rates[i][j] = scale * energies[i][j] / (kb * temp)
+                rates[i][j] = (temp * kb / (4.1357 * 10**-15)) * np.exp(
+                    -energies[i][j] / (kb * temp)
+                )
+
     return rates

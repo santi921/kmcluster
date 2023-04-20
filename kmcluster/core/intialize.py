@@ -27,7 +27,7 @@ class random_init(initializer):
                 ind = random.randint(0, self.n_states)
                 population[ind] = population[ind] + 1
             self.population = population
-        #construct dictionary with each state and its population
+        # construct dictionary with each state and its population
         pop_dict = {}
         for i, pop in enumerate(self.population):
             pop_dict[i] = pop
@@ -111,7 +111,7 @@ class selected(initializer):
                 assert v <= 1, "selected proportions must be less than 1"
                 population[k] = int(self.size * v)
             self.population = population
-        
+
         return self.population
 
 
