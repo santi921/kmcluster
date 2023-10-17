@@ -574,6 +574,84 @@ def communities_static(trajectories, time_to_plot):
     pass
 
 
+def graph_trajectories_static(
+    energies,
+    ret_pos=False,
+    pos=None,
+    ax=None,
+    save=False,
+    save_name="test.png",
+):
+    """
+    given a list of trajectories, plot the state of at time_to_plot as a graph
+    """
+    # make matrix whether there is a rate connecting two states
+    G = nx.DiGraph()
+
+    for i in range(len(energies)):
+        for j in range(len(energies)):
+            if energies[i][j] > 0:
+                """G.add_weighted_edges_from(
+                    [(i, j, energies[i][j])], label=round(energies[i][j], 2)
+                )"""
+                G.add_edge(
+                    i + 1,
+                    j + 1,
+                    label=round(energies[i][j], 2),
+                    weight=1 / energies[i][j],
+                )
+
+    if pos is None:
+        pos = nx.spring_layout(G)
+        pos = nx.kamada_kawai_layout(G)
+        pos = nx.spectral_layout(G)
+        pos = nx.circular_layout(G)
+
+    if ax != None:
+        nodes = nx.draw_networkx_nodes(
+            G,
+            pos,
+            cmap=plt.cm.YlOrRd,
+            ax=ax,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        nx.draw_networkx_edges(G, pos, arrowstyle="-|>", arrowsize=20, ax=ax)
+        # Uncomment this if you want your labels
+        nx.draw_networkx_labels(G, pos, ax=ax)
+        # edge labels
+        nx.draw_networkx_edge_labels(
+            G, pos, edge_labels=nx.get_edge_attributes(G, "label"), ax=ax
+        )
+    else:
+        nodes = nx.draw_networkx_nodes(
+            G,
+            pos,
+            cmap=plt.cm.YlOrRd,
+        )
+        # Set edge color to red
+        nodes.set_edgecolor("r")
+        nx.draw_networkx_edges(
+            G,
+            pos,
+            arrowstyle="-|>",
+            arrowsize=20,
+        )
+        # Uncomment this if you want your labels
+        nx.draw_networkx_labels(G, pos, ax=ax)
+        # edge labels
+        nx.draw_networkx_edge_labels(
+            G,
+            pos,
+            edge_labels=nx.get_edge_attributes(G, "label"),
+        )
+
+    plt.show()
+    if ret_pos:
+        return pos
+    return G
+
+
 def graph_slider(trajectories, rates, time_max, n_states, file_name):
     fig, ax = plt.subplots()
     fig.subplots_adjust(left=0.1, bottom=0.3)
