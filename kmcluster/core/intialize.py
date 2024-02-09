@@ -38,14 +38,14 @@ class random_init(initializer):
 
 # initialize population based on boltzman distribution
 class boltz(initializer):
-    def __init__(self, size, T, energies):
+    def __init__(self, size, kb_T, energies):
         super().__init__()
         self.size = size
-        self.T = T
+        self.kb_T = kb_T
         self.energies = energies
         # make energies relative
         self.energies_relative = energies - np.max(energies)
-        self.probabilities = [np.exp(-e / T) for e in self.energies_relative]
+        self.probabilities = [np.exp(-e / kb_T) for e in self.energies_relative]
         self.sum_probabilities = sum(self.probabilities)
         self.probabilities_normalized = [
             p / self.sum_probabilities for p in self.probabilities

@@ -627,8 +627,7 @@ class kmc:
         # remove last row
         count_df = count_df.iloc[:-1]
         # add column names as times
-        count_df = pd.DataFrame(count_dict)
-        count_df = count_df.iloc[:-1]
+
         x_axis = np.linspace(0, max_time, len(count_df))
         # x_axis = np.arange(0, self.time_stop, self.sample_frequency)
         count_df.index = x_axis
@@ -641,9 +640,7 @@ class kmc:
         keys_top_n = sum_count.nlargest(n_show).index.to_list()
 
         x_axis = np.arange(0, self.time_stop, self.sample_frequency)
-        counts_per_state = np.zeros((n_show, len(x_axis)))
-        self.pop_size
-
+        
         df_show = count_df[keys_top_n]
         # divide by total population size
         df_show = df_show / self.pop_size

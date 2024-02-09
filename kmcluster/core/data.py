@@ -376,12 +376,13 @@ def energy_to_rates(energies, temp, scale=1000):
     rates = np.zeros(energies.shape)
     for i in range(len(energies)):
         for j in range(len(energies)):
-            if energies[i][j] != 0:
+            if energies[i, j] != 0:
                 # rates[i][j] = scale * energies[i][j] / (kb * temp)
-                rates[i][j] = (
+                term = (
                     scale
                     * (temp * kb / (4.1357 * 10**-15))
                     * np.exp(-energies[i][j] / (kb * temp))
                 )
+                rates[i, j] = term
 
     return rates
